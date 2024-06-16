@@ -11,10 +11,34 @@ Using [LandScan](https://landscan.ornl.gov/) data for population, we can estimat
 
 Currently, targets are selected by finding for a given country where to detonate a given number of warheads over the country's most populated region and without overlapping targets.
 
-## To do
-* Write codebase orientation
-* Perform verification by comparing to Toon results
-* Can't mix kt types and optimal no overlap, but optimal no overlap works if just one kt type is used
-* Reinstate the degrade resolution function, which is better to find the best targets than the 1km resolution that can give weird results
+## Limitations
+* Nuclear fallout is not considered.
+* Targets are selected based on the highest density 1 km² region, which can sometimes lead to weird results given imperfections in the LandScan data. If judged important, this could be fixed by averaging over a larger area, but this would demand non-trivial revisions of the codebase.
+* The current non-overlapping target allocation algorithm will not handle correctly a case where the nuclear arsenal hitting a country is made of different types of warheads.
 
 ## Codebase orientation
+Simply use `scripts/master.ipynb` to calculate the number of fatalities in a nuclear war given an attack with a given number of warheads against a given country. All the code is in `src/main.py`.
+
+## Verification
+To verify that the implementation is correct, we can compare to the [results](https://pubs.aip.org/view-large/figure/45882429/37_1_f1.jpg) of Toon et al. Below is a comparison between the number of causualities (in millions) in different scenarios.
+
+
+| Scenario | Toon et al. | This code |
+|----------|----------|----------|
+| Pakistan, 50x 15kt  | 18   | 17   |
+| Pakistan, 200x 100kt  | 50   |  56  |
+| UK, 50x 15kt | 6 | 5 |
+| UK, 200x 100kt | 28 | 25 |
+| Germany 200x 100kt | 28 | 24 |
+| India 50x 15kt | 26 |  |
+| India 200x 100kt | 116 |  |
+| Japan 50x 15kt | 13 |  |
+| Japan 200x 100kt | 59 |  |
+| US 50x 15kt | 8 |  |
+| US 200x 100kt | 104 |  |
+| Russia 50x 15kt | 12 |  |
+| Russia 200x 100kt | 76 |  |
+| China 50x 15kt | 32 |  |
+| China 200x 100kt | 287 |  |
+| France 50x 15kt | 7 |  |
+| France 200x 100kt | 23 |  |

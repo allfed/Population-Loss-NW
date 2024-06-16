@@ -1,14 +1,22 @@
+import cartopy.crs as ccrs
+import cartopy.img_transform
 import folium
 import geopandas as gpd
+import matplotlib.colors as colors
+import matplotlib.path as mpath
 import matplotlib.pyplot as plt
 import numpy as np
 import rasterio
 from folium.plugins import HeatMap
 from mpl_toolkits.basemap import Basemap
-from mpl_toolkits.basemap import maskoceans
-from matplotlib.path import Path
-from shapely.geometry import Point
+from pyproj import CRS
+import shapely.geometry as sgeom
+import shapely.geometry
 import warnings
+from PIL import Image
+from matplotlib.colors import ListedColormap
+import pyproj
+
 
 # Suppress FutureWarning
 warnings.simplefilter(action="ignore", category=FutureWarning)
@@ -45,34 +53,6 @@ class LandScan:
         self.data = data
         return
 
-    def degrade(self, degrade_factor):
-        """
-        Degrade the LandScan data by a factor of degrade_factor
-        """
-        degraded_shape = (
-            self.data.shape[0] // degrade_factor,
-            self.data.shape[1] // degrade_factor,
-        )
-        degraded_data = np.memmap(
-            "degraded_landscan_data.memmap",
-            dtype=self.data.dtype,
-            mode="w+",
-            shape=degraded_shape,
-        )
-        # Process the data in chunks to reduce memory usage
-        chunk_size = degrade_factor
-        for i in range(0, self.data.shape[0], chunk_size):
-            for j in range(0, self.data.shape[1], chunk_size):
-                block = self.data[i : i + chunk_size, j : j + chunk_size]
-                degraded_data[i // degrade_factor, j // degrade_factor] = block.sum()
-
-        assert (
-            degraded_data.sum() == self.data.sum()
-        ), "The sum of the degraded data should be equal to the sum of the original data"
-
-        self.data = degraded_data
-        return
-
     def plot(self):
         """
         Make a map of the LandScan data
@@ -107,9 +87,9 @@ class LandScan:
 
 
 class Country:
-    def __init__(self, country_name, degrade_factor=5, degrade=False):
+    def __init__(self, country_name):
         """
-        Load the population data for the specified country and degrade it by a factor of degrade_factor
+        Load the population data for the specified country
 
         Args:
             country_name (str): the name of the country
@@ -118,12 +98,10 @@ class Country:
         """
         # Load landscan data
         landscan = LandScan()
-        if degrade:
-            landscan.degrade(degrade_factor)
 
         # Get the geometry of the specified country
-        country = gpd.read_file(gpd.datasets.get_path("naturalearth_lowres"))
-        country = country[country.name == country_name]
+        country = gpd.read_file("../data/natural-earth/ne_10m_admin_0_countries.shp")
+        country = country[country.ADMIN == country_name]
 
         # Get country bounds
         country_bounds = country.geometry.bounds.iloc[0]
@@ -176,17 +154,24 @@ class Country:
         self.target_list = []
         self.fatalities = []
         self.kilotonne = []
+        self.include_injuries = False
 
         del landscan, lons, lats, points_region, gdf_region, mask_region
         return
 
-    def attack_max_fatality_non_overlapping(self, arsenal):
+    def attack_max_fatality_non_overlapping(self, arsenal, include_injuries=False):
         """
         Attack the country  by finding where to detonate a given number of warheads over the country's most populated region and without overlapping targets.
 
         Args:
             arsenal (list): a list of the yield of the warheads in kt
         """
+        self.include_injuries = include_injuries
+        if not all(x == arsenal[0] for x in arsenal):
+            warnings.warn(
+                "Arsenal contains different yield values. The current non-overlapping target allocation algorithm will not handle this correctly."
+            )
+
         for yield_kt in arsenal:
             self.attack_next_target(yield_kt)
         return
@@ -203,7 +188,9 @@ class Country:
 
         # Use the mask to filter the data and find the maximum population index
         masked_data = np.where(valid_targets_mask, self.data, np.nan)
-        max_population_index = np.unravel_index(np.nanargmax(masked_data), self.data.shape)
+        max_population_index = np.unravel_index(
+            np.nanargmax(masked_data), self.data.shape
+        )
         max_population_lat = self.lats[max_population_index[0]]
         max_population_lon = self.lons[max_population_index[1]]
 
@@ -250,7 +237,7 @@ class Country:
                         lat_pixel, lon_pixel, lat_groundzero, lon_groundzero
                     )
                     fatality_rate = get_fatality_rate(
-                        distance_from_groundzero, yield_kt
+                        distance_from_groundzero, yield_kt, self.include_injuries
                     )
                     self.fatalities.append(fatality_rate * population_in_pixel)
                     self.hit[lat_idx, lon_idx] = 1
@@ -271,7 +258,7 @@ class Country:
         lat_indices = np.where((self.lats >= lat_min) & (self.lats <= lat_max))[0]
 
         # Apply the mask to the exclusion region, we simply make the population
-        # negative so it will never be targeted, but we still have 
+        # negative so it will never be targeted, but we still have
         for lat_idx in lat_indices:
             for lon_idx in lon_indices:
                 lon_pixel = self.lons[lon_idx]
@@ -289,12 +276,12 @@ class Country:
         """
         return int(sum(self.fatalities))
 
-    def plot(self, show_destroyed_regions=False, show_population_density=False):
+    def plot(self, show_hit_regions=False, show_population_density=False):
         """
         Make an interactive map
 
         Args:
-            show_destroyed_regions (bool): if True, show the destroyed regions
+            show_hit_regions (bool): if True, show the hit regions
             show_population_density (bool): if True, show the population density
         """
 
@@ -305,36 +292,34 @@ class Country:
 
         # Show population density
         if show_population_density:
-            # Prepare data for HeatMap (lat, lon, data_value)
-            population_density = [
-                [
-                    float(self.lats[i]),
-                    float(self.lons[j]),
-                    np.log10(float(self.data_original[i, j])),
-                ]
-                for i in range(self.data.shape[0])
-                for j in range(self.data.shape[1])
-                if self.data_original[i, j] > 0
+            bounds = [
+                [np.min(self.lats), np.min(self.lons)],
+                [np.max(self.lats), np.max(self.lons)],
             ]
-            HeatMap(
-                population_density, min_opacity=0.2, radius=5, blur=4, max_zoom=1
+            folium.raster_layers.ImageOverlay(
+                image=np.log10(self.data_original + 1),
+                bounds=bounds,
+                colormap=ListedColormap(
+                    ["none"] + list(plt.cm.viridis(np.linspace(0, 1, plt.cm.viridis.N)))
+                ),
+                opacity=0.5,
+                mercator_project=True,
             ).add_to(m)
 
-        # Show destroyed regions
-        if show_destroyed_regions:
-            # Prepare data for destroyed regions
-            destroyed_data = [
-                [
-                    float(self.lats[i]),
-                    float(self.lons[j]),
-                    1.0,
-                ]  # 1.0 as a placeholder for destroyed regions
-                for i in range(self.data.shape[0])
-                for j in range(self.data.shape[1])
-                if self.hit[i, j] == 1
+        # Show hit regions
+        if show_hit_regions:
+            # Reproject coordinates from PlateCarre to Mercator
+
+            bounds = [
+                [np.min(self.lats), np.min(self.lons)],
+                [np.max(self.lats), np.max(self.lons)],
             ]
-            HeatMap(
-                destroyed_data, gradient={0.1: "black", 1: "red"}, min_opacity=0.6
+            folium.raster_layers.ImageOverlay(
+                image=self.hit,
+                bounds=bounds,
+                colormap=ListedColormap(["none", "red"]),  # Use a red colormap for hit regions
+                opacity=0.5,
+                mercator_project=True,
             ).add_to(m)
 
         # plot targets
@@ -365,7 +350,7 @@ def haversine_distance(lat1, lon1, lat2, lon2):
     return distance
 
 
-def get_fatality_rate(distance_from_groundzero, yield_kt):
+def get_fatality_rate(distance_from_groundzero, yield_kt, include_injuries=False):
     """
     Calculates the fatality rate given the distance from the ground zero and the yield of the warhead in kt
 
@@ -374,17 +359,13 @@ def get_fatality_rate(distance_from_groundzero, yield_kt):
     Args:
         distance_from_groundzero (float): the distance from the ground zero in km
         yield_kt (float): the yield of the warhead in kt
-
+        include_injuries (bool): if True, includes fatalities + injuries
     Returns:
         fatality_rate (float): the fatality rate
     """
-    sigma = 1.15 * np.sqrt(yield_kt / 15)
+    if include_injuries:
+        sigma0 = 1.87
+    else:
+        sigma0 = 1.15
+    sigma = sigma0 * np.sqrt(yield_kt / 15)
     return np.exp(-(distance_from_groundzero**2) / (2 * sigma**2))
-
-
-##################### tests to include ##########################
-# # assert that total population of China is 1.4 billion +/- 1%
-# population_data_china = get_population_data_for_country("China", population_data)
-# assert (
-#     abs(population_data_china.sum() - 1_400_000_000) < 14_000_000
-# ), "The sum of the population data for China should be equal to 1.4 billion"
