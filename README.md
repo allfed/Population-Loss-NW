@@ -9,7 +9,9 @@ Hiroshima and Nagasaki data give a normal distribution around ground zero for th
 
 Using [LandScan](https://landscan.ornl.gov/) data for population, we can estimate the number of fatalities in the immediate aftermath of a nuclear war by integrating over the distribution of distances from ground zero.
 
-Currently, targets are selected by finding for a given country where to detonate a given number of warheads over the country's most populated region and without overlapping targets.
+Currently, targets are selected by finding for a given country where to detonate a given number of warheads over the country's most populated region and without overlapping targets. For example, here are the results for 200 100-kt non-overlapping strikes on Germany.
+
+![200 100-kt striked on Germany](images/germany-200-100kt-example.png) 
 
 ## Limitations
 * Nuclear fallout is not considered.
@@ -29,16 +31,16 @@ To verify that the implementation is correct, we can compare to the [results](ht
 | Pakistan, 200x 100kt  | 50   |  56  |
 | UK, 50x 15kt | 6 | 5 |
 | UK, 200x 100kt | 28 | 25 |
-| Germany 200x 100kt | 28 | 24 |
-| India 50x 15kt | 26 |  |
-| India 200x 100kt | 116 |  |
-| Japan 50x 15kt | 13 |  |
-| Japan 200x 100kt | 59 |  |
-| US 50x 15kt | 8 |  |
-| US 200x 100kt | 104 |  |
-| Russia 50x 15kt | 12 |  |
-| Russia 200x 100kt | 76 |  |
-| China 50x 15kt | 32 |  |
-| China 200x 100kt | 287 |  |
-| France 50x 15kt | 7 |  |
-| France 200x 100kt | 23 |  |
+| Germany, 200x 100kt | 28 | 24 |
+| India, 50x 15kt | 26 |  |
+| India, 200x 100kt | 116 |  |
+| Japan, 50x 15kt | 13 |  |
+| Japan, 200x 100kt | 59 |  |
+| US, 50x 15kt | 8 |  |
+| US, 200x 100kt | 104 |  |
+| Russia, 50x 15kt | 12 |  |
+| Russia, 200x 100kt | 76 |  |
+| China, 50x 15kt | 32 |  |
+| China, 200x 100kt | 287 |  |
+| France, 50x 15kt | 7 |  |
+| France, 200x 100kt | 23 |  |
