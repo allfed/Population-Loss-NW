@@ -126,6 +126,18 @@ class Country:
             np.abs(lats - country_bounds.miny)
         )  # miny for max index
 
+        # For France, only include European territories
+        if country_name == "France":
+            min_lat_idx = np.argmin(np.abs(lats - 51))
+            max_lat_idx = np.argmin(np.abs(lats - 42))
+            min_lon_idx = np.argmin(np.abs(lons + 6))
+            max_lon_idx = np.argmin(np.abs(lons - 10))
+
+        # For the US, exclude Alaska
+        if country_name == "United States":
+            max_lat_idx = np.argmin(np.abs(lats - 50))
+
+
         # Extract the data for the region
         region_data = landscan.data[
             min_lat_idx : max_lat_idx + 1, min_lon_idx : max_lon_idx + 1
@@ -194,6 +206,9 @@ class Country:
         self.data_averaged = convolve(self.data, kernel, mode="constant")
         self.hit = np.zeros(self.data.shape)
         self.exclude = np.zeros(self.data.shape)
+        self.target_list = []
+        self.fatalities = []
+        self.kilotonne = []
 
         for yield_kt in arsenal:
             self.attack_next_target(yield_kt)

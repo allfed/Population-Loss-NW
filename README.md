@@ -18,28 +18,35 @@ Currently, targets are selected by finding for a given country where to detonate
 * The current non-overlapping target allocation algorithm will not handle correctly a case where the nuclear arsenal hitting a country is made of different types of warheads.
 
 ## Codebase orientation
-Simply use `scripts/master.ipynb` to calculate the number of fatalities in a nuclear war given an attack with a given number of warheads against a given country. All the code is in `src/main.py`.
+Simply use `scripts/master.ipynb` to calculate the number of fatalities in a nuclear war given an attack with a given number of warheads against a given country. All the code is in `src/main.py`. `results` contain the number of fatalities for different scenarios.
 
 ## Verification
-To verify that the implementation is correct, we can compare to the [results](https://pubs.aip.org/view-large/figure/45882429/37_1_f1.jpg) of Toon et al. Below is a comparison between the number of casualties (in millions) in different scenarios. Note that this includes fatalities and injuries and was performed with the LandScan 2002 data to facilitate the comparison with the results of Toon et al. These results are therefore outdated and should not be used in the integratede model.
+To verify that the implementation is correct, we can compare to the [results](https://pubs.aip.org/view-large/figure/45882429/37_1_f1.jpg) of Toon et al. Below is a comparison between the number of casualties (in millions) in different scenarios. Note that this includes fatalities and injuries to facilitate the comparison with the results of Toon et al. Everything seems to work well: some numbers are significantly higher, but this can be attributed to population increase over the years (especially Pakistan and India).
 
 
 | Scenario | Toon et al. | This code |
 |----------|----------|----------|
-| Pakistan, 50x 15kt  | 18   | 17   |
-| Pakistan, 200x 100kt  | 50   |  56  |
-| UK, 50x 15kt | 6 | 5 |
-| UK, 200x 100kt | 28 | 25 |
+| Pakistan, 50x 15kt  | 18   |  22  |
+| Pakistan, 200x 100kt  | 50   |  66  |
+| UK, 50x 15kt | 6 | 6 |
+| UK, 200x 100kt | 28 | 29 |
 | Germany, 200x 100kt | 28 | 24 |
-| India, 50x 15kt | 26 |  |
-| India, 200x 100kt | 116 |  |
-| Japan, 50x 15kt | 13 |  |
-| Japan, 200x 100kt | 59 |  |
+| India, 50x 15kt | 26 | 34 |
+| India, 200x 100kt | 116 | 172 |
+| Japan, 50x 15kt | 13 | 11 |
+| Japan, 200x 100kt | 59 | 50 |
 | US, 50x 15kt | 8 |  |
 | US, 200x 100kt | 104 |  |
 | Russia, 50x 15kt | 12 |  |
 | Russia, 200x 100kt | 76 |  |
 | China, 50x 15kt | 32 |  |
 | China, 200x 100kt | 287 |  |
-| France, 50x 15kt | 7 |  |
-| France, 200x 100kt | 23 |  |
+| France, 50x 15kt | 7 | 6 |
+| France, 200x 100kt | 23 | 20 |
+
+
+## Scenarios considered
+See the `results` directory for the results of the scenarios considered.
+
+### `Toon2008_SORT`
+This scenario is based on [Toon et al. 2008](https://pubs.aip.org/physicstoday/article/61/12/37/393240/Environmental-consequences-of-nuclear-war). In this scenario,  we assume that Russia targets 1000 weapons on the US and 200 warheads each on France, Germany, India, Japan, Pakistan, and the UK. We assume the US targets 1100 weapons each on China and Russia. Targets are selected by finding for a given country where to detonate a given number of warheads over the country's most populated region and without overlapping targets. In this scenario, total fatalities are X.
