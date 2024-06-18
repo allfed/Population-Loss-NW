@@ -17,7 +17,7 @@ from scipy.ndimage import convolve
 import shapely.geometry
 import shapely.geometry as sgeom
 import warnings
-
+import multiprocessing as mp
 
 # Suppress FutureWarning
 warnings.simplefilter(action="ignore", category=FutureWarning)
@@ -137,7 +137,6 @@ class Country:
         if country_name == "United States":
             max_lat_idx = np.argmin(np.abs(lats - 50))
 
-
         # Extract the data for the region
         region_data = landscan.data[
             min_lat_idx : max_lat_idx + 1, min_lon_idx : max_lon_idx + 1
@@ -151,12 +150,23 @@ class Country:
             gpd.points_from_xy(lons_region.ravel(), lats_region.ravel())
         )
         gdf_region = gpd.GeoDataFrame(geometry=points_region, crs="EPSG:4326")
-        mask_region = gpd.sjoin(
-            gdf_region, country, how="inner", predicate="intersects"
-        ).index
-        mask_region_bool = np.zeros(region_data.size, dtype=bool)
-        mask_region_bool[mask_region] = True
-        mask_region_bool = mask_region_bool.reshape(region_data.shape)
+
+        # Split gdf_region into chunks for parallel processing
+        num_processes = mp.cpu_count()
+        chunk_size = len(gdf_region) // num_processes
+        chunks = [
+            gdf_region[i : i + chunk_size]
+            for i in range(0, len(gdf_region), chunk_size)
+        ]
+
+        # Create a multiprocessing pool and process chunks in parallel
+        with mp.Pool(processes=num_processes) as pool:
+            mask_region_chunks = pool.starmap(
+                process_chunk, [(chunk, country, region_data.shape) for chunk in chunks]
+            )
+
+        # Combine the results from all chunks using logical OR
+        mask_region_bool = np.logical_or.reduce(mask_region_chunks)
 
         # Apply the mask to the population data
         population_data_country = np.where(mask_region_bool, region_data, 0)
@@ -173,7 +183,7 @@ class Country:
         self.fatalities = []
         self.kilotonne = []
 
-        del landscan, lons, lats, points_region, gdf_region, mask_region
+        del landscan, lons, lats, points_region, gdf_region, mask_region_chunks, mask_region_bool
         return
 
     def attack_max_fatality_non_overlapping(self, arsenal, include_injuries=False):
@@ -409,3 +419,10 @@ def get_fatality_rate(distance_from_groundzero, yield_kt, include_injuries=False
         sigma0 = 1.15
     sigma = sigma0 * np.sqrt(yield_kt / 15)
     return np.exp(-(distance_from_groundzero**2) / (2 * sigma**2))
+
+
+def process_chunk(chunk, country, region_data_shape):
+    mask_region = gpd.sjoin(chunk, country, how="inner", predicate="intersects").index
+    mask_region_bool = np.zeros(region_data_shape, dtype=bool)
+    mask_region_bool.ravel()[mask_region] = True
+    return mask_region_bool
