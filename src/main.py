@@ -9,13 +9,14 @@ import numpy as np
 import rasterio
 from folium.plugins import HeatMap
 from mpl_toolkits.basemap import Basemap
-from pyproj import CRS
-import shapely.geometry as sgeom
-import shapely.geometry
-import warnings
 from PIL import Image
 from matplotlib.colors import ListedColormap
+from pyproj import CRS
 import pyproj
+from scipy.ndimage import convolve
+import shapely.geometry
+import shapely.geometry as sgeom
+import warnings
 
 
 # Suppress FutureWarning
@@ -23,12 +24,15 @@ warnings.simplefilter(action="ignore", category=FutureWarning)
 
 
 class LandScan:
-    def __init__(self):
+    def __init__(self, landscan_year=2022):
         """
         Load the LandScan TIF file from the data directory and replace negative values by 0
+
+        Args:
+            landscan_year (int): the year of the LandScan data
         """
         # Open the TIF file from the data directory
-        tif_path = "../data/landscan-global-2022.tif"
+        tif_path = f"../data/landscan-global-{landscan_year}.tif"
         with rasterio.open(tif_path) as dataset:
             data_shape = dataset.shape
             data_dtype = dataset.dtypes[0]
@@ -46,9 +50,10 @@ class LandScan:
                 ] = data_block
             print("LandScan TIF file loaded successfully.")
 
-        assert (
-            data.sum() == 7906382407
-        ), "The sum of the original data should be equal to 7.9 billion"
+        if landscan_year == 2022:
+            assert (
+                data.sum() == 7906382407
+            ), "The sum of the original data should be equal to 7.9 billion"
 
         self.data = data
         return
@@ -87,7 +92,7 @@ class LandScan:
 
 
 class Country:
-    def __init__(self, country_name):
+    def __init__(self, country_name, landscan_year=2022):
         """
         Load the population data for the specified country
 
@@ -95,9 +100,10 @@ class Country:
             country_name (str): the name of the country
             degrade_factor (int): the factor by which to degrade the LandScan data
             degrade (bool): if True, degrade the LandScan data
+            landscan_year (int): the year of the LandScan data
         """
         # Load landscan data
-        landscan = LandScan()
+        landscan = LandScan(landscan_year)
 
         # Get the geometry of the specified country
         country = gpd.read_file("../data/natural-earth/ne_10m_admin_0_countries.shp")
@@ -148,13 +154,12 @@ class Country:
         self.lons = lons[min_lon_idx : max_lon_idx + 1]
 
         self.data = population_data_country
-        self.data_original = population_data_country.copy()
+
         self.hit = np.zeros(population_data_country.shape)
         self.exclude = np.zeros(population_data_country.shape)
         self.target_list = []
         self.fatalities = []
         self.kilotonne = []
-        self.include_injuries = False
 
         del landscan, lons, lats, points_region, gdf_region, mask_region
         return
@@ -172,6 +177,24 @@ class Country:
                 "Arsenal contains different yield values. The current non-overlapping target allocation algorithm will not handle this correctly."
             )
 
+        # Calculate the average population over neighboring cells within a specified radius
+        # This will be use for target-finding only.
+        # This avoids the problem of hitting a target with very high population density over
+        # 1 km² but low population density around it
+        #
+        # Approximate region where fatalities will occur. This is approximative, but again
+        # this is only used for target finging.
+        #
+        radius = int(1.15 * np.sqrt(arsenal[0] / 15) * 2)
+        kernel = np.zeros((2 * radius + 1, 2 * radius + 1))
+        y, x = np.ogrid[-radius : radius + 1, -radius : radius + 1]
+        mask = x**2 + y**2 <= radius**2
+        kernel[mask] = 1
+        kernel /= kernel.sum()
+        self.data_averaged = convolve(self.data, kernel, mode="constant")
+        self.hit = np.zeros(self.data.shape)
+        self.exclude = np.zeros(self.data.shape)
+
         for yield_kt in arsenal:
             self.attack_next_target(yield_kt)
         return
@@ -187,7 +210,7 @@ class Country:
         valid_targets_mask = self.exclude == 0
 
         # Use the mask to filter the data and find the maximum population index
-        masked_data = np.where(valid_targets_mask, self.data, np.nan)
+        masked_data = np.where(valid_targets_mask, self.data_averaged, np.nan)
         max_population_index = np.unravel_index(
             np.nanargmax(masked_data), self.data.shape
         )
@@ -272,7 +295,7 @@ class Country:
 
     def get_total_fatalities(self):
         """
-        Get the total fatalities
+        Get the total fatalities, will include both fatalities and injuries if include_injuries is True
         """
         return int(sum(self.fatalities))
 
@@ -297,7 +320,7 @@ class Country:
                 [np.max(self.lats), np.max(self.lons)],
             ]
             folium.raster_layers.ImageOverlay(
-                image=np.log10(self.data_original + 1),
+                image=np.log10(self.data + 1),
                 bounds=bounds,
                 colormap=ListedColormap(
                     ["none"] + list(plt.cm.viridis(np.linspace(0, 1, plt.cm.viridis.N)))
@@ -317,7 +340,9 @@ class Country:
             folium.raster_layers.ImageOverlay(
                 image=self.hit,
                 bounds=bounds,
-                colormap=ListedColormap(["none", "red"]),  # Use a red colormap for hit regions
+                colormap=ListedColormap(
+                    ["none", "red"]
+                ),  # Use a red colormap for hit regions
                 opacity=0.5,
                 mercator_project=True,
             ).add_to(m)

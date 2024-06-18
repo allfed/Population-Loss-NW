@@ -15,14 +15,13 @@ Currently, targets are selected by finding for a given country where to detonate
 
 ## Limitations
 * Nuclear fallout is not considered.
-* Targets are selected based on the highest density 1 km² region, which can sometimes lead to weird results given imperfections in the LandScan data. If judged important, this could be fixed by averaging over a larger area, but this would demand non-trivial revisions of the codebase.
 * The current non-overlapping target allocation algorithm will not handle correctly a case where the nuclear arsenal hitting a country is made of different types of warheads.
 
 ## Codebase orientation
 Simply use `scripts/master.ipynb` to calculate the number of fatalities in a nuclear war given an attack with a given number of warheads against a given country. All the code is in `src/main.py`.
 
 ## Verification
-To verify that the implementation is correct, we can compare to the [results](https://pubs.aip.org/view-large/figure/45882429/37_1_f1.jpg) of Toon et al. Below is a comparison between the number of causualities (in millions) in different scenarios.
+To verify that the implementation is correct, we can compare to the [results](https://pubs.aip.org/view-large/figure/45882429/37_1_f1.jpg) of Toon et al. Below is a comparison between the number of casualties (in millions) in different scenarios. Note that this includes fatalities and injuries and was performed with the LandScan 2002 data to facilitate the comparison with the results of Toon et al. These results are therefore outdated and should not be used in the integratede model.
 
 
 | Scenario | Toon et al. | This code |

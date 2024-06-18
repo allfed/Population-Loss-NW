@@ -163,3 +163,4 @@ cython_debug/
 
 *.memmap
 *.html
+*landscan-global-2002.tif
