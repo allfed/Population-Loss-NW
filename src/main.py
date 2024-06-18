@@ -11,25 +11,28 @@ from folium.plugins import HeatMap
 from mpl_toolkits.basemap import Basemap
 from PIL import Image
 from matplotlib.colors import ListedColormap
+import multiprocessing as mp
 from pyproj import CRS
 import pyproj
 from scipy.ndimage import convolve
 import shapely.geometry
 import shapely.geometry as sgeom
+from skimage.measure import block_reduce
 import warnings
-import multiprocessing as mp
 
 # Suppress FutureWarning
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
 
 class LandScan:
-    def __init__(self, landscan_year=2022):
+    def __init__(self, landscan_year=2022, degrade=False, degrade_factor=1):
         """
         Load the LandScan TIF file from the data directory and replace negative values by 0
 
         Args:
             landscan_year (int): the year of the LandScan data
+            degrade (bool): if True, degrade the LandScan data
+            degrade_factor (int): the factor by which to degrade the LandScan data
         """
         # Open the TIF file from the data directory
         tif_path = f"../data/landscan-global-{landscan_year}.tif"
@@ -55,7 +58,13 @@ class LandScan:
                 data.sum() == 7906382407
             ), "The sum of the original data should be equal to 7.9 billion"
 
-        self.data = data
+        if degrade:
+            # Degrade the resolution of the data by summing cells using block reduce
+            block_size = (degrade_factor, degrade_factor)
+            self.data = block_reduce(data, block_size, np.sum)
+        else:
+            self.data = data
+
         return
 
     def plot(self):
@@ -92,18 +101,19 @@ class LandScan:
 
 
 class Country:
-    def __init__(self, country_name, landscan_year=2022):
+    def __init__(self, country_name, landscan_year=2022, degrade=False, degrade_factor=1):
         """
         Load the population data for the specified country
 
         Args:
             country_name (str): the name of the country
-            degrade_factor (int): the factor by which to degrade the LandScan data
-            degrade (bool): if True, degrade the LandScan data
             landscan_year (int): the year of the LandScan data
+            degrade (bool): if True, degrade the LandScan data
+            degrade_factor (int): the factor by which to degrade the LandScan data
         """
         # Load landscan data
-        landscan = LandScan(landscan_year)
+        self.degrade_factor = degrade_factor
+        landscan = LandScan(landscan_year, degrade, degrade_factor)
 
         # Get the geometry of the specified country
         country = gpd.read_file("../data/natural-earth/ne_10m_admin_0_countries.shp")
@@ -134,7 +144,7 @@ class Country:
             max_lon_idx = np.argmin(np.abs(lons - 10))
 
         # For the US, exclude Alaska
-        if country_name == "United States":
+        if country_name == "United States of America":
             max_lat_idx = np.argmin(np.abs(lats - 50))
 
         # Extract the data for the region
@@ -183,7 +193,15 @@ class Country:
         self.fatalities = []
         self.kilotonne = []
 
-        del landscan, lons, lats, points_region, gdf_region, mask_region_chunks, mask_region_bool
+        del (
+            landscan,
+            lons,
+            lats,
+            points_region,
+            gdf_region,
+            mask_region_chunks,
+            mask_region_bool,
+        )
         return
 
     def attack_max_fatality_non_overlapping(self, arsenal, include_injuries=False):
@@ -207,7 +225,7 @@ class Country:
         # Approximate region where fatalities will occur. This is approximative, but again
         # this is only used for target finging.
         #
-        radius = int(1.15 * np.sqrt(arsenal[0] / 15) * 2)
+        radius = int(1.15 * np.sqrt(arsenal[0] / 15) * 2 / self.degrade_factor) 
         kernel = np.zeros((2 * radius + 1, 2 * radius + 1))
         y, x = np.ogrid[-radius : radius + 1, -radius : radius + 1]
         mask = x**2 + y**2 <= radius**2

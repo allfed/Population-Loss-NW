@@ -16,6 +16,7 @@ Currently, targets are selected by finding for a given country where to detonate
 ## Limitations
 * Nuclear fallout is not considered.
 * The current non-overlapping target allocation algorithm will not handle correctly a case where the nuclear arsenal hitting a country is made of different types of warheads.
+* The code requires quite a bit of RAM if the target country is large. If this is an issue, you can use the `degrade` option to degrade the resolution of the LandScan data.
 
 ## Codebase orientation
 Simply use `scripts/master.ipynb` to calculate the number of fatalities in a nuclear war given an attack with a given number of warheads against a given country. All the code is in `src/main.py`. `results` contain the number of fatalities for different scenarios.
@@ -30,7 +31,7 @@ To verify that the implementation is correct, we can compare to the [results](ht
 | Pakistan, 200x 100kt  | 50   |  66  |
 | UK, 50x 15kt | 6 | 6 |
 | UK, 200x 100kt | 28 | 29 |
-| Germany, 200x 100kt | 28 | 24 |
+| Germany, 200x 100kt | 28 | 26 |
 | India, 50x 15kt | 26 | 34 |
 | India, 200x 100kt | 116 | 172 |
 | Japan, 50x 15kt | 13 | 11 |
