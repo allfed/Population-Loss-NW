@@ -143,10 +143,6 @@ class Country:
             min_lon_idx = np.argmin(np.abs(lons + 6))
             max_lon_idx = np.argmin(np.abs(lons - 10))
 
-        # For the US, exclude Alaska
-        if country_name == "United States of America":
-            max_lat_idx = np.argmin(np.abs(lats - 50))
-
         # Extract the data for the region
         region_data = landscan.data[
             min_lat_idx : max_lat_idx + 1, min_lon_idx : max_lon_idx + 1
