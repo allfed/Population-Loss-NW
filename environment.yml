@@ -37,6 +37,7 @@ dependencies:
   - c-ares=1.28.1=hd590300_0
   - ca-certificates=2024.6.2=hbcca054_0
   - cairo=1.18.0=h3faef2a_0
+  - cartopy=0.23.0=py312h1d6d2e6_1
   - certifi=2024.6.2=pyhd8ed1ab_0
   - cfitsio=4.4.0=hbdc6101_1
   - charset-normalizer=3.3.2=pyhd8ed1ab_0
