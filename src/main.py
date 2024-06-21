@@ -1,5 +1,6 @@
 import cartopy.crs as ccrs
 import cartopy.img_transform
+import csv
 import folium
 import geopandas as gpd
 import matplotlib.colors as colors
@@ -12,6 +13,7 @@ from mpl_toolkits.basemap import Basemap
 from PIL import Image
 from matplotlib.colors import ListedColormap
 import multiprocessing as mp
+import pycountry
 from pyproj import CRS
 import pyproj
 from scipy.ndimage import convolve
@@ -51,7 +53,6 @@ class LandScan:
                     window.row_off : window.row_off + window.height,
                     window.col_off : window.col_off + window.width,
                 ] = data_block
-            print("LandScan TIF file loaded successfully.")
 
         if landscan_year == 2022:
             assert (
@@ -62,6 +63,10 @@ class LandScan:
             # Degrade the resolution of the data by summing cells using block reduce
             block_size = (degrade_factor, degrade_factor)
             self.data = block_reduce(data, block_size, np.sum)
+            if landscan_year == 2022:
+                assert (
+                    self.data.sum() == 7906382407
+                ), "The sum of the original data should be equal to 7.9 billion"
         else:
             self.data = data
 
@@ -101,7 +106,9 @@ class LandScan:
 
 
 class Country:
-    def __init__(self, country_name, landscan_year=2022, degrade=False, degrade_factor=1):
+    def __init__(
+        self, country_name, landscan_year=2022, degrade=False, degrade_factor=1
+    ):
         """
         Load the population data for the specified country
 
@@ -221,7 +228,7 @@ class Country:
         # Approximate region where fatalities will occur. This is approximative, but again
         # this is only used for target finging.
         #
-        radius = int(1.15 * np.sqrt(arsenal[0] / 15) * 2 / self.degrade_factor) 
+        radius = int(1.15 * np.sqrt(arsenal[0] / 15) * 2 / self.degrade_factor)
         kernel = np.zeros((2 * radius + 1, 2 * radius + 1))
         y, x = np.ogrid[-radius : radius + 1, -radius : radius + 1]
         mask = x**2 + y**2 <= radius**2
@@ -440,3 +447,32 @@ def process_chunk(chunk, country, region_data_shape):
     mask_region_bool = np.zeros(region_data_shape, dtype=bool)
     mask_region_bool.ravel()[mask_region] = True
     return mask_region_bool
+
+
+def run_many_countries(scenario, degrade=False, degrade_factor=1):
+    """
+    Run the model for multiple countries and return the results
+    """
+    results = []
+
+    for country_name, arsenal in scenario.items():
+        country = Country(
+            country_name, landscan_year=2022, degrade=False, degrade_factor=3
+        )
+        country.attack_max_fatality_non_overlapping(arsenal, include_injuries=True)
+        fatalities = country.get_total_fatalities()
+        print(f"{country_name}, fatalities: {fatalities}")
+
+        # Get ISO3 code for the country
+        try:
+            iso3 = pycountry.countries.search_fuzzy(country_name)[0].alpha_3
+        except LookupError:
+            iso3 = "Unknown"  # Use a placeholder if the country is not found
+
+        results.append([iso3, fatalities])
+
+    # Save results to CSV
+    with open("../results/nuclear_war_fatalities.csv", "w", newline="") as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(["iso3", "population_loss"])  # Write header
+        writer.writerows(results)
