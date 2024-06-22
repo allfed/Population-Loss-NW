@@ -242,10 +242,62 @@ class Country:
         self.kilotonne = []
 
         for yield_kt in arsenal:
-            self.attack_next_target(yield_kt)
+            self.attack_next_most_populated_target(yield_kt)
         return
 
-    def attack_next_target(self, yield_kt):
+    def attack_random_non_overlapping(self, arsenal, include_injuries=False):
+        """
+        Attack the country by detonating a given number of warheads at random locations without overlapping targets.
+
+        Args:
+            arsenal (list): a list of the yield of the warheads in kt
+        """
+        self.include_injuries = include_injuries
+
+        self.hit = np.zeros(self.data.shape)
+        self.exclude = np.zeros(self.data.shape)
+        self.target_list = []
+        self.fatalities = []
+        self.kilotonne = []
+
+        # Set exclude to 1 for regions outside the country's borders
+        self.exclude[self.data == 0] = 1
+
+        for yield_kt in arsenal:
+            self.attack_next_random_target(yield_kt)
+        return
+
+    def attack_next_random_target(self, yield_kt):
+        """
+        Attack a random location in the country that hasn't been hit yet
+
+        Args:
+            yield_kt (float): the yield of the warhead in kt
+        """
+        # Create a mask to exclude previously hit targets
+        valid_targets_mask = self.exclude == 0
+
+        # Use the mask to filter the data and find valid target indices
+        valid_target_indices = np.argwhere(valid_targets_mask)
+
+        if len(valid_target_indices) > 0:
+            # Randomly select a target index from the valid indices
+            random_target_index = valid_target_indices[
+                np.random.choice(len(valid_target_indices))
+            ]
+            random_target_lat = self.lats[random_target_index[0]]
+            random_target_lon = self.lons[random_target_index[1]]
+
+            self.apply_destruction(random_target_lat, random_target_lon, yield_kt)
+            self.target_list.append((random_target_lat, random_target_lon))
+            self.kilotonne.append(yield_kt)
+
+            return random_target_lat, random_target_lon
+        else:
+            # No valid targets remaining
+            return None, None
+
+    def attack_next_most_populated_target(self, yield_kt):
         """
         Attack the next most populated region
 
@@ -326,8 +378,7 @@ class Country:
         lon_indices = np.where((self.lons >= lon_min) & (self.lons <= lon_max))[0]
         lat_indices = np.where((self.lats >= lat_min) & (self.lats <= lat_max))[0]
 
-        # Apply the mask to the exclusion region, we simply make the population
-        # negative so it will never be targeted, but we still have
+        # Apply the mask to the exclusion region
         for lat_idx in lat_indices:
             for lon_idx in lon_indices:
                 lon_pixel = self.lons[lon_idx]
@@ -449,17 +500,40 @@ def process_chunk(chunk, country, region_data_shape):
     return mask_region_bool
 
 
-def run_many_countries(scenario, degrade=False, degrade_factor=1):
+def run_many_countries(
+    scenario,
+    degrade=False,
+    degrade_factor=1,
+    targeting_policy="max_fatality_non_overlapping",
+    include_injuries=False,
+):
     """
     Run the model for multiple countries and return the results
+
+    Args:
+        scenario (dict): a dictionary with the country names as keys and the arsenal as values
+        degrade (bool): if True, degrade the LandScan data
+        degrade_factor (int): the factor by which to degrade the LandScan data
+        targeting_policy (str): the targeting policy to use, either "max_fatality_non_overlapping" or "random_non_overlapping"
+        include_injuries (bool): if True, include fatalities and injuries
     """
     results = []
 
     for country_name, arsenal in scenario.items():
         country = Country(
-            country_name, landscan_year=2022, degrade=False, degrade_factor=3
+            country_name,
+            landscan_year=2022,
+            degrade=degrade,
+            degrade_factor=degrade_factor,
         )
-        country.attack_max_fatality_non_overlapping(arsenal, include_injuries=True)
+        if targeting_policy == "max_fatality_non_overlapping":
+            country.attack_max_fatality_non_overlapping(
+                arsenal, include_injuries=include_injuries
+            )
+        elif targeting_policy == "random_non_overlapping":
+            country.attack_random_non_overlapping(
+                arsenal, include_injuries=include_injuries
+            )
         fatalities = country.get_total_fatalities()
         print(f"{country_name}, fatalities: {fatalities}")
 
