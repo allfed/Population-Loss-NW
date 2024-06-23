@@ -57,4 +57,8 @@ This scenario is based on [Toon et al. 2008](https://pubs.aip.org/physicstoday/a
 * Include radiation fallout
 * Distinguish between airburst and groundburst
 * Include counter-force targets
+* Calculate soot emission as in [Toon et al. 2008](https://pubs.aip.org/physicstoday/article/61/12/37/393240/Environmental-consequences-of-nuclear-warA)
 * Add industry loss
+    * Start by extracting the `.osm` data
+* Add a targetting option to maximize soot emission
+* Add a targeting option to maximize fatalities (more than Toon et al. by relaxing the exclusion criterion)
