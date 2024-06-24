@@ -2,6 +2,13 @@
 Estimate fatalities in the direct aftermath of a nuclear war
 
 
+## Installation
+1. Clone the repo on your local machine.
+2. Create the Conda environment using `conda env create -f environment.yml`.
+3. Activate the new environment using `conda activate Population-Loss-NW`.
+4. (Optional) Download the `.osm` data to the `data/OSM` directory if you want to use the industrial loss option. It can be downloaded [here](https://drive.google.com/drive/folders/13g6QluVBuEs9fm-nOPzuiYNYdXzB1WiK?usp=drive_link).
+5. (Optional) Download the HD LandScan data to the `data/LandScan` directory if you want to use the HD version of the LandScan data. It can be downloaded [here](https://landscan.ornl.gov/).
+
 ## Methodology
 Here we use the methodology of [Toon et al. 2007](https://acp.copernicus.org/articles/7/1973/2007/acp-7-1973-2007.pdf) and [Toon et al. 2008](https://pubs.aip.org/physicstoday/article/61/12/37/393240/Environmental-consequences-of-nuclear-warA) to estimate the number of fatalities in the aftermath of a nuclear war.
 
@@ -9,13 +16,12 @@ In Hiroshima and Nagasaki data a normal distribution around ground zero was meas
 
 Using [LandScan](https://landscan.ornl.gov/) data for population, we can estimate the number of fatalities in the immediate aftermath of a nuclear war by integrating over the distribution of distances from ground zero.
 
-Currently, targets are selected by finding for a given country where to detonate a given number of warheads over the country's most populated region and without overlapping targets (following the Toon et al. methodology). For example, here are the results for 50 100-kt non-overlapping strikes on Germany. The areas colored in red are regions where fatalities are expected from the blasts and ensuing fires. 14 million fatalities are expected in this scenario.
+Targets can be selected by finding for a given country where to detonate a given number of warheads over the country's most populated region and without overlapping targets (following the Toon et al. methodology). For example, here are the results for 50 100-kt non-overlapping strikes on Germany. The areas colored in red are regions where fatalities are expected from the blasts and ensuing fires. 14 million fatalities are expected in this scenario. Other targeting options currently supported are to maximize the number of fatalities while allowing overlapping targets, and defining the coordinates of the targets (along with a CEP to account for targeting inaccuracy).
 
 ![200 100-kt striked on Germany](images/germany-50-100kt-example.png) 
 
 ## Limitations
 * Nuclear fallout is not considered.
-* The current non-overlapping target allocation algorithm will not handle correctly a case where the nuclear arsenal hitting a country is made of warheads with different yields.
 * The code requires quite a bit of RAM if the target country is large. If this is an issue, you can use the `degrade` option to degrade the resolution of the LandScan data. The original resolution is 30 arc-seconds, so the individual pixels are somewhat smaller than 1 km² for the regions most susceptible to nuclear war.
 
 ## Codebase orientation
@@ -60,5 +66,3 @@ This scenario is based on [Toon et al. 2008](https://pubs.aip.org/physicstoday/a
 * Calculate soot emission as in [Toon et al. 2008](https://pubs.aip.org/physicstoday/article/61/12/37/393240/Environmental-consequences-of-nuclear-warA)
 * Add industry loss
     * Start by extracting the `.osm` data
-* Add a targetting option to maximize soot emission
-* Add a targeting option to maximize fatalities (more than Toon et al. by relaxing the exclusion criterion)

@@ -112,6 +112,10 @@ else
     echo "Region identified: $region"
 fi
 
+# Replace spaces in country name with dashes to match Geofabrik's conventions
+country=$(echo "$country" | tr ' ' '-')
+
+
 # Construct the download URL
 download_url="https://download.geofabrik.de/${region}/${country}-latest.osm.pbf"
 
