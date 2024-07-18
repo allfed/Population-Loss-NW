@@ -12,7 +12,8 @@ import rasterio
 from folium.plugins import HeatMap
 from mpl_toolkits.basemap import Basemap
 from PIL import Image
-from matplotlib.colors import ListedColormap
+from matplotlib.colors import ListedColormap, LinearSegmentedColormap
+from branca.colormap import LinearColormap
 import multiprocessing as mp
 import pycountry
 from pyproj import CRS
@@ -437,7 +438,8 @@ class Country:
         self, lat_groundzero, lon_groundzero, yield_kt, non_overlapping=True
     ):
         """
-        Destroy the country by removing the population from the specified location and the max_radius km around it
+        Removing the population from the specified location and the max_radius_kill km around it and
+        destroy infrastructure within max_radius_burn km around it
 
         Args:
             lat (float): the latitude of the target location
@@ -445,30 +447,39 @@ class Country:
             yield_kt (float): the yield of the warhead in kt
             non_overlapping (bool): if True, prohibit overlapping targets as Toon et al.
         """
-        # (1) Apply destruction
-        max_radius = np.sqrt(yield_kt / 15) * 3  # From Toon et al. 2008
-        delta_lon = max_radius / 6371.0 / np.cos(np.radians(lat_groundzero))
-        delta_lat = max_radius / 6371.0
-        delta_lon = delta_lon * 180 / np.pi
-        delta_lat = delta_lat * 180 / np.pi
+        # (1) Apply population loss and infrastructure destruction
+        max_radius_kill = np.sqrt(yield_kt / 15) * 3  # From Toon et al. 2008
+        max_radius_burn = np.sqrt(yield_kt / 15) * 2.03  # From Toon et al. 2008
+        delta_lon_kill = max_radius_kill / 6371.0 / np.cos(np.radians(lat_groundzero))
+        delta_lat_kill = max_radius_kill / 6371.0
+        delta_lon_kill = delta_lon_kill * 180 / np.pi
+        delta_lat_kill = delta_lat_kill * 180 / np.pi
+        delta_lon_burn = max_radius_burn / 6371.0 / np.cos(np.radians(lat_groundzero))
+        delta_lat_burn = max_radius_burn / 6371.0
+        delta_lon_burn = delta_lon_burn * 180 / np.pi
+        delta_lat_burn = delta_lat_burn * 180 / np.pi
 
         # Create a mask for the box that bounds the destroyed region
-        lon_min = lon_groundzero - delta_lon
-        lon_max = lon_groundzero + delta_lon
-        lat_min = lat_groundzero - delta_lat
-        lat_max = lat_groundzero + delta_lat
-        lon_indices = np.where((self.lons >= lon_min) & (self.lons <= lon_max))[0]
-        lat_indices = np.where((self.lats >= lat_min) & (self.lats <= lat_max))[0]
+        lon_min_kill = lon_groundzero - delta_lon_kill
+        lon_max_kill = lon_groundzero + delta_lon_kill
+        lat_min_kill = lat_groundzero - delta_lat_kill
+        lat_max_kill = lat_groundzero + delta_lat_kill
+        lon_indices_kill = np.where(
+            (self.lons >= lon_min_kill) & (self.lons <= lon_max_kill)
+        )[0]
+        lat_indices_kill = np.where(
+            (self.lats >= lat_min_kill) & (self.lats <= lat_max_kill)
+        )[0]
 
         # Apply the mask to the destroyed region
-        for lat_idx in lat_indices:
-            for lon_idx in lon_indices:
-                lon_pixel = self.lons[lon_idx]
-                lat_pixel = self.lats[lat_idx]
-                if (lon_pixel - lon_groundzero) ** 2 / delta_lon**2 + (
+        for lat_idx_kill in lat_indices_kill:
+            for lon_idx_kill in lon_indices_kill:
+                lon_pixel = self.lons[lon_idx_kill]
+                lat_pixel = self.lats[lat_idx_kill]
+                if (lon_pixel - lon_groundzero) ** 2 / delta_lon_kill**2 + (
                     lat_pixel - lat_groundzero
-                ) ** 2 / delta_lat**2 <= 1:
-                    population_in_pixel = self.data[lat_idx, lon_idx]
+                ) ** 2 / delta_lat_kill**2 <= 1: # kill population
+                    population_in_pixel = self.data[lat_idx_kill, lon_idx_kill]
                     distance_from_groundzero = haversine_distance(
                         lat_pixel, lon_pixel, lat_groundzero, lon_groundzero
                     )
@@ -476,10 +487,15 @@ class Country:
                         distance_from_groundzero, yield_kt, self.include_injuries
                     )
                     self.fatalities.append(fatality_rate * population_in_pixel)
-                    self.hit[lat_idx, lon_idx] = 1
-                    self.data[lat_idx, lon_idx] = self.data[lat_idx, lon_idx] * (
-                        1 - fatality_rate
-                    )
+                    self.hit[lat_idx_kill, lon_idx_kill] = 1
+                    self.data[lat_idx_kill, lon_idx_kill] = self.data[
+                        lat_idx_kill, lon_idx_kill
+                    ] * (1 - fatality_rate)
+                if (lon_pixel - lon_groundzero) ** 2 / delta_lon_burn**2 + (
+                    lat_pixel - lat_groundzero
+                ) ** 2 / delta_lat_burn**2 <= 1: # destroy infrastructure
+                    self.hit[lat_idx_kill, lon_idx_kill] = 2
+                    # apply infrastructure destruction here using the osm data
 
         if non_overlapping:
             # (2) Now we apply another mask to make sure there is no overlap with future nukes
@@ -553,12 +569,18 @@ class Country:
                 [np.min(self.lats), np.min(self.lons)],
                 [np.max(self.lats), np.max(self.lons)],
             ]
+
+            color_map = LinearColormap(
+                colors=[(0, 0, 0, 0), (255, 0, 0, 120), (0, 0, 0, 120)],
+                vmin=0,
+                vmax=2,
+                caption="Hit Regions",
+            )
+
             folium.raster_layers.ImageOverlay(
                 image=self.hit,
                 bounds=bounds,
-                colormap=ListedColormap(
-                    ["none", "red"]
-                ),  # Use a red colormap for hit regions
+                colormap=color_map,
                 opacity=0.5,
                 mercator_project=True,
             ).add_to(m)
