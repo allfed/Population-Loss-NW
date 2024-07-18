@@ -1,28 +1,24 @@
-import cartopy.crs as ccrs
-import cartopy.img_transform
 import csv
+import multiprocessing as mp
+import warnings
+
 import folium
 import geopandas as gpd
-import matplotlib.colors as colors
-import matplotlib.path as mpath
 import matplotlib.pyplot as plt
 import numpy as np
+import osmium
 import pandas as pd
-import rasterio
-from folium.plugins import HeatMap
-from mpl_toolkits.basemap import Basemap
-from PIL import Image
-from matplotlib.colors import ListedColormap, LinearSegmentedColormap
-from branca.colormap import LinearColormap
-import multiprocessing as mp
 import pycountry
-from pyproj import CRS
 import pyproj
+import rasterio
+
+from branca.colormap import LinearColormap
+from mpl_toolkits.basemap import Basemap
+from matplotlib.colors import ListedColormap
 from scipy.ndimage import convolve
-import shapely.geometry
-import shapely.geometry as sgeom
+from shapely.geometry import box, Polygon
 from skimage.measure import block_reduce
-import warnings
+
 
 # Suppress FutureWarning
 warnings.simplefilter(action="ignore", category=FutureWarning)
@@ -140,6 +136,7 @@ class Country:
         degrade_factor=1,
         use_HD=False,
         subregion=None,
+        industry=True,
     ):
         """
         Load the population data for the specified country
@@ -152,6 +149,7 @@ class Country:
             use_HD (bool): if True, use the HD version of the LandScan data
             subregion (list): the bounds of the subregion to extract from the LandScan data in the format
              [min_lon, max_lon, min_lat, max_lat]. This is optional and if not provided, the entire country is used.
+            industry (bool): if True, then load industrial zones
         """
         # Load landscan data
         self.degrade_factor = degrade_factor
@@ -249,6 +247,10 @@ class Country:
         self.target_list = []
         self.fatalities = []
         self.kilotonne = []
+
+        if industry:
+            osm_file = f"../data/OSM/{country_name.lower()}-industrial.osm"
+            self.industry = get_industrial_areas_from_osm(osm_file)
 
         del (
             landscan,
@@ -478,7 +480,7 @@ class Country:
                 lat_pixel = self.lats[lat_idx_kill]
                 if (lon_pixel - lon_groundzero) ** 2 / delta_lon_kill**2 + (
                     lat_pixel - lat_groundzero
-                ) ** 2 / delta_lat_kill**2 <= 1: # kill population
+                ) ** 2 / delta_lat_kill**2 <= 1:  # kill population
                     population_in_pixel = self.data[lat_idx_kill, lon_idx_kill]
                     distance_from_groundzero = haversine_distance(
                         lat_pixel, lon_pixel, lat_groundzero, lon_groundzero
@@ -493,7 +495,7 @@ class Country:
                     ] * (1 - fatality_rate)
                 if (lon_pixel - lon_groundzero) ** 2 / delta_lon_burn**2 + (
                     lat_pixel - lat_groundzero
-                ) ** 2 / delta_lat_burn**2 <= 1: # destroy infrastructure
+                ) ** 2 / delta_lat_burn**2 <= 1:  # destroy infrastructure
                     self.hit[lat_idx_kill, lon_idx_kill] = 2
                     # apply infrastructure destruction here using the osm data
 
@@ -531,13 +533,19 @@ class Country:
         """
         return int(sum(self.fatalities))
 
-    def plot(self, show_hit_regions=False, show_population_density=False):
+    def plot(
+        self,
+        show_hit_regions=False,
+        show_population_density=False,
+        show_industrial_areas=False,
+    ):
         """
         Make an interactive map
 
         Args:
             show_hit_regions (bool): if True, show the hit regions
             show_population_density (bool): if True, show the population density
+            show_industrial_areas (bool): if True, show the industrial areas
         """
 
         # Create a folium map centered around the average coordinates
@@ -571,10 +579,9 @@ class Country:
             ]
 
             color_map = LinearColormap(
-                colors=[(0, 0, 0, 0), (255, 0, 0, 120), (0, 0, 0, 120)],
+                colors=[(0, 0, 0, 0), (255, 0, 0, 120), (255, 0, 0, 210)],
                 vmin=0,
                 vmax=2,
-                caption="Hit Regions",
             )
 
             folium.raster_layers.ImageOverlay(
@@ -592,6 +599,24 @@ class Country:
                 popup=f"Hit with {self.kilotonne[i]} kt",
                 icon=folium.Icon(color="red", icon="radiation"),
             ).add_to(m)
+
+        # Plot industrial areas
+        if show_industrial_areas:
+            if hasattr(self, "industry"):
+                for _, industrial_area in self.industry.iterrows():
+                    polygon_coords = [
+                        (coord[1], coord[0])
+                        for coord in industrial_area.geometry.exterior.coords[:]
+                    ]
+                    folium.Polygon(
+                        locations=polygon_coords,
+                        color="purple",
+                        fill=True,
+                        fillColor="purple",
+                        fillOpacity=0.3,
+                        opacity=0.5,
+                        popup="Industrial Area",
+                    ).add_to(m)
 
         # Display the map
         m.save("interactive_map.html")
@@ -695,3 +720,70 @@ def run_many_countries(
         writer = csv.writer(csvfile)
         writer.writerow(["iso3", "population_loss"])  # Write header
         writer.writerows(results)
+
+
+class IndustrialAreaHandler(osmium.SimpleHandler):
+    """
+    Handles industrial areas in OSM data.
+
+    Args:
+        osmium.SimpleHandler: Base class for handling OSM data
+    """
+
+    def __init__(self):
+        """
+        Initialize IndustrialAreaHandler.
+        """
+        super(IndustrialAreaHandler, self).__init__()
+        self.nodes = {}
+        self.industrial_areas = []
+
+    def node(self, n):
+        """
+        Process OSM nodes.
+
+        Args:
+            n: OSM node object
+        """
+        lon, lat = str(n.location).split("/")
+        self.nodes[n.id] = (float(lon), float(lat))
+
+    def way(self, w):
+        """
+        Process OSM ways to extract industrial areas.
+
+        Args:
+            w: OSM way object
+        """
+        if "landuse" in w.tags and w.tags["landuse"] == "industrial":
+            try:
+                coords = [self.nodes[n.ref] for n in w.nodes]
+                if coords[0] != coords[-1]:  # Ensure the polygon is closed
+                    coords.append(coords[0])
+                if (
+                    len(coords) >= 4
+                ):  # A valid polygon needs at least 4 points (3 + 1 to close)
+                    polygon = Polygon(coords)
+                    self.industrial_areas.append((w.id, polygon))
+            except Exception as e:
+                print(f"Error processing way {w.id}: {e}")
+
+
+def get_industrial_areas_from_osm(osm_file_path):
+    """
+    Extract industrial areas from a local .osm file.
+
+    Args:
+        osm_file_path (str): Path to the .osm file
+
+    Returns:
+        GeoDataFrame: GeoDataFrame of industrial areas
+    """
+    handler = IndustrialAreaHandler()
+    handler.apply_file(osm_file_path)
+
+    gdf = gpd.GeoDataFrame(
+        handler.industrial_areas, columns=["id", "geometry"], crs="EPSG:4326"
+    )
+    gdf["centroid"] = gdf.geometry.centroid
+    return gdf
