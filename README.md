@@ -18,9 +18,11 @@ Using [LandScan](https://landscan.ornl.gov/) data for population, we can estimat
 
 Targets can be selected by finding for a given country where to detonate a given number of warheads over the country's most populated region and without overlapping targets (following the Toon et al. methodology). For example, here are the results for 50 100-kt non-overlapping strikes on Germany. The areas colored in light red are regions where fatalities are expected from the blasts and ensuing fires and those colored in dark red are regions expected to be burned down. 14 million fatalities are expected in this scenario. Other targeting options currently supported are to maximize the number of fatalities while allowing overlapping targets, and defining the coordinates of the targets (along with a CEP to account for targeting inaccuracy).
 
-![200 100-kt striked on Germany](images/germany-50-100kt-example.png) 
+![50 100-kt strikes on Germany](images/germany-50-100kt-example.png) 
 
 In addition, industrial zones can be shown in purple or brown if they are burned down by the nuclear explosions. This allows to estimate the loss of industry in the aftermath of a nuclear war by calculating for a given country what fraction of all industrial areas are burned down.
+
+![200 100-kt strikes on Germany](images/germany-50-100kt-example-industry.png) 
 
 ## Data sources
 * [LandScan](https://landscan.ornl.gov/) for population data
