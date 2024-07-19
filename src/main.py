@@ -249,8 +249,15 @@ class Country:
         self.kilotonne = []
 
         if industry:
-            osm_file = f"../data/OSM/{country_name.lower()}-industrial.osm"
+            osm_file = (
+                f"../data/OSM/{country_name.lower().replace(' ', '-')}-industrial.osm"
+            )
             self.industry = get_industrial_areas_from_osm(osm_file)
+            self.industry_equal_area = self.industry.to_crs("ESRI:54034")
+            self.total_industry_area = sum(
+                row.geometry.area for _, row in self.industry_equal_area.iterrows()
+            )
+            self.destroyed_industrial_areas = []
 
         del (
             landscan,
@@ -451,7 +458,7 @@ class Country:
         """
         # (1) Apply population loss and infrastructure destruction
         max_radius_kill = np.sqrt(yield_kt / 15) * 3  # From Toon et al. 2008
-        max_radius_burn = np.sqrt(yield_kt / 15) * 2.03  # From Toon et al. 2008
+        max_radius_burn = np.sqrt(yield_kt / 15) * 2.03  # From Toon et al. 2008, linear scaling of burned area with yield, with 13 km² for Hiroshima
         delta_lon_kill = max_radius_kill / 6371.0 / np.cos(np.radians(lat_groundzero))
         delta_lat_kill = max_radius_kill / 6371.0
         delta_lon_kill = delta_lon_kill * 180 / np.pi
@@ -473,14 +480,20 @@ class Country:
             (self.lats >= lat_min_kill) & (self.lats <= lat_max_kill)
         )[0]
 
+        # Calculate pixel width and height
+        pixel_width = self.lons[1] - self.lons[0]
+        pixel_height = self.lats[1] - self.lats[0]
+
         # Apply the mask to the destroyed region
         for lat_idx_kill in lat_indices_kill:
             for lon_idx_kill in lon_indices_kill:
                 lon_pixel = self.lons[lon_idx_kill]
                 lat_pixel = self.lats[lat_idx_kill]
+
                 if (lon_pixel - lon_groundzero) ** 2 / delta_lon_kill**2 + (
                     lat_pixel - lat_groundzero
-                ) ** 2 / delta_lat_kill**2 <= 1:  # kill population
+                ) ** 2 / delta_lat_kill**2 <= 1:
+                    # kill population
                     population_in_pixel = self.data[lat_idx_kill, lon_idx_kill]
                     distance_from_groundzero = haversine_distance(
                         lat_pixel, lon_pixel, lat_groundzero, lon_groundzero
@@ -493,11 +506,22 @@ class Country:
                     self.data[lat_idx_kill, lon_idx_kill] = self.data[
                         lat_idx_kill, lon_idx_kill
                     ] * (1 - fatality_rate)
+
                 if (lon_pixel - lon_groundzero) ** 2 / delta_lon_burn**2 + (
                     lat_pixel - lat_groundzero
-                ) ** 2 / delta_lat_burn**2 <= 1:  # destroy infrastructure
+                ) ** 2 / delta_lat_burn**2 <= 1:
+                    # destroy infrastructure
                     self.hit[lat_idx_kill, lon_idx_kill] = 2
-                    # apply infrastructure destruction here using the osm data
+                    pixel_box = box(
+                        lon_pixel - pixel_width / 2,
+                        lat_pixel - pixel_height / 2,
+                        lon_pixel + pixel_width / 2,
+                        lat_pixel + pixel_height / 2,
+                    )
+                    overlapping = self.industry.intersects(pixel_box)
+                    if overlapping.any():
+                        overlapping_ids = self.industry[overlapping].index.tolist()
+                        self.destroyed_industrial_areas.extend(overlapping_ids)
 
         if non_overlapping:
             # (2) Now we apply another mask to make sure there is no overlap with future nukes
@@ -532,6 +556,16 @@ class Country:
         Get the total fatalities, will include both fatalities and injuries if include_injuries is True
         """
         return int(sum(self.fatalities))
+
+    def get_total_destroyed_industrial_area(self):
+        """
+        Get the total destroyed industrial area as a fraction of the country's total industrial area
+        """
+        self.destroyed_industrial_areas = list(set(self.destroyed_industrial_areas))
+        destroyed_area = self.industry_equal_area[
+            self.industry_equal_area.index.isin(self.destroyed_industrial_areas)
+        ].geometry.area.sum()
+        return destroyed_area / self.total_industry_area
 
     def plot(
         self,
@@ -579,7 +613,7 @@ class Country:
             ]
 
             color_map = LinearColormap(
-                colors=[(0, 0, 0, 0), (255, 0, 0, 120), (255, 0, 0, 210)],
+                colors=[(0, 0, 0, 0), (255, 0, 0, 20), (255, 0, 0, 40)],
                 vmin=0,
                 vmax=2,
             )
@@ -593,26 +627,31 @@ class Country:
             ).add_to(m)
 
         # plot targets
-        for i, target in enumerate(self.target_list):
-            folium.Marker(
-                [float(target[0]), float(target[1])],
-                popup=f"Hit with {self.kilotonne[i]} kt",
-                icon=folium.Icon(color="red", icon="radiation"),
-            ).add_to(m)
+        if not show_hit_regions:
+            for i, target in enumerate(self.target_list):
+                folium.Marker(
+                    [float(target[0]), float(target[1])],
+                    popup=f"Hit with {self.kilotonne[i]} kt",
+                    icon=folium.Icon(color="red", icon="radiation"),
+                ).add_to(m)
 
         # Plot industrial areas
         if show_industrial_areas:
             if hasattr(self, "industry"):
-                for _, industrial_area in self.industry.iterrows():
+                for index, industrial_area in self.industry.iterrows():
+                    if index in self.destroyed_industrial_areas:
+                        color = "brown"
+                    else:
+                        color = "purple"
                     polygon_coords = [
                         (coord[1], coord[0])
                         for coord in industrial_area.geometry.exterior.coords[:]
                     ]
                     folium.Polygon(
                         locations=polygon_coords,
-                        color="purple",
+                        color=color,
                         fill=True,
-                        fillColor="purple",
+                        fillColor=color,
                         fillOpacity=0.3,
                         opacity=0.5,
                         popup="Industrial Area",
@@ -707,18 +746,23 @@ def run_many_countries(
         fatalities = country.get_total_fatalities()
         print(f"{country_name}, fatalities: {fatalities}")
 
+        industry_destroyed_pct = country.get_total_destroyed_industrial_area()
+        print(f"{country_name}, industry destroyed: {1000*industry_destroyed_pct:.2f}%")
+
         # Get ISO3 code for the country
         try:
             iso3 = pycountry.countries.search_fuzzy(country_name)[0].alpha_3
         except LookupError:
             iso3 = "Unknown"  # Use a placeholder if the country is not found
 
-        results.append([iso3, fatalities])
+        results.append([iso3, fatalities, industry_destroyed_pct])
 
     # Save results to CSV
     with open("../results/nuclear_war_fatalities.csv", "w", newline="") as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow(["iso3", "population_loss"])  # Write header
+        writer.writerow(
+            ["iso3", "population_loss", "industry_destroyed_pct"]
+        )  # Write header
         writer.writerows(results)
 
 
@@ -785,5 +829,4 @@ def get_industrial_areas_from_osm(osm_file_path):
     gdf = gpd.GeoDataFrame(
         handler.industrial_areas, columns=["id", "geometry"], crs="EPSG:4326"
     )
-    gdf["centroid"] = gdf.geometry.centroid
     return gdf

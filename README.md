@@ -1,12 +1,12 @@
 # Population-Loss-NW
-Estimate fatalities in the direct aftermath of a nuclear war
+Estimate fatalities and loss of industry in the direct aftermath of a nuclear war
 
 
 ## Installation
 1. Clone the repo on your local machine.
 2. Create the Conda environment using `conda env create -f environment.yml`.
 3. Activate the new environment using `conda activate Population-Loss-NW`.
-4. (Optional) Download the `.osm` data to the `data/OSM` directory if you want to use the industrial loss option. It can be downloaded [here](https://drive.google.com/drive/folders/13g6QluVBuEs9fm-nOPzuiYNYdXzB1WiK?usp=drive_link).
+4. (Optional) Download the `.osm` data to the `data/OSM` directory if you want to use the industrial loss option. It can be downloaded [here](https://drive.google.com/drive/folders/13g6QluVBuEs9fm-nOPzuiYNYdXzB1WiK?usp=drive_link). For more countries, additional files can also be generated using the `data/OSM/extract-industrial-country.sh` script.
 5. (Optional) Download the HD LandScan data to the `data/LandScan` directory if you want to use the HD version of the LandScan data. It can be downloaded [here](https://landscan.ornl.gov/).
 
 ## Methodology
@@ -16,16 +16,22 @@ In Hiroshima and Nagasaki data a normal distribution around ground zero was meas
 
 Using [LandScan](https://landscan.ornl.gov/) data for population, we can estimate the number of fatalities in the immediate aftermath of a nuclear war by integrating over the distribution of distances from ground zero.
 
-Targets can be selected by finding for a given country where to detonate a given number of warheads over the country's most populated region and without overlapping targets (following the Toon et al. methodology). For example, here are the results for 50 100-kt non-overlapping strikes on Germany. The areas colored in red are regions where fatalities are expected from the blasts and ensuing fires. 14 million fatalities are expected in this scenario. Other targeting options currently supported are to maximize the number of fatalities while allowing overlapping targets, and defining the coordinates of the targets (along with a CEP to account for targeting inaccuracy).
+Targets can be selected by finding for a given country where to detonate a given number of warheads over the country's most populated region and without overlapping targets (following the Toon et al. methodology). For example, here are the results for 50 100-kt non-overlapping strikes on Germany. The areas colored in light red are regions where fatalities are expected from the blasts and ensuing fires and those colored in dark red are regions expected to be burned down. 14 million fatalities are expected in this scenario. Other targeting options currently supported are to maximize the number of fatalities while allowing overlapping targets, and defining the coordinates of the targets (along with a CEP to account for targeting inaccuracy).
 
 ![200 100-kt striked on Germany](images/germany-50-100kt-example.png) 
+
+In addition, industrial zones can be shown in purple or brown if they are burned down by the nuclear explosions. This allows to estimate the loss of industry in the aftermath of a nuclear war by calculating for a given country what fraction of all industrial areas are burned down.
+
+## Data sources
+* [LandScan](https://landscan.ornl.gov/) for population data
+* [OSM](https://download.geofabrik.de/) for industrial data
 
 ## Limitations
 * Nuclear fallout is not considered.
 * The code requires quite a bit of RAM if the target country is large. If this is an issue, you can use the `degrade` option to degrade the resolution of the LandScan data. The original resolution is 30 arc-seconds, so the individual pixels are somewhat smaller than 1 km² for the regions most susceptible to nuclear war.
 
 ## Codebase orientation
-Simply use `scripts/master.ipynb` to calculate the number of fatalities in a nuclear war given an attack with a given number of warheads against a given country. All the code is in `src/main.py`. `results` contains the number of fatalities for different scenarios.
+Simply use `scripts/master.ipynb` to calculate the number of fatalities and loss of industrial capacity in a nuclear war given an attack with a given number of warheads against a given country. All the code is in `src/main.py`. `results` contains the number of fatalities and loss of industrial capacity for different scenarios.
 
 ## Verification
 To verify that the implementation is correct, we can compare to the [results](https://pubs.aip.org/view-large/figure/45882429/37_1_f1.jpg) of Toon et al. Below is a comparison between the number of casualties (in millions) in different scenarios. Note that this includes fatalities and injuries to facilitate the comparison with the results of Toon et al. Everything seems to work ok. Some numbers are significantly higher, but this can be attributed to population increase over the years (India in particular).
@@ -64,5 +70,4 @@ This scenario is based on [Toon et al. 2008](https://pubs.aip.org/physicstoday/a
 * Distinguish between airburst and groundburst
 * Include counter-force targets
 * Calculate soot emission as in [Toon et al. 2008](https://pubs.aip.org/physicstoday/article/61/12/37/393240/Environmental-consequences-of-nuclear-warA)
-* Add industry loss
-    * Start by extracting the `.osm` data
+* Add HEMPs
