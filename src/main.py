@@ -747,7 +747,7 @@ def run_many_countries(
         print(f"{country_name}, fatalities: {fatalities}")
 
         industry_destroyed_pct = country.get_total_destroyed_industrial_area()
-        print(f"{country_name}, industry destroyed: {1000*industry_destroyed_pct:.2f}%")
+        print(f"{country_name}, industry destroyed: {100*industry_destroyed_pct:.2f}%")
 
         # Get ISO3 code for the country
         try:
