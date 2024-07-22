@@ -746,6 +746,8 @@ def run_many_countries(
         fatalities = country.get_total_fatalities()
         print(f"{country_name}, fatalities: {fatalities}")
 
+        fatalities_pct = fatalities / country.data.sum() * 100
+
         industry_destroyed_pct = country.get_total_destroyed_industrial_area()
         print(f"{country_name}, industry destroyed: {100*industry_destroyed_pct:.2f}%")
 
@@ -755,13 +757,13 @@ def run_many_countries(
         except LookupError:
             iso3 = "Unknown"  # Use a placeholder if the country is not found
 
-        results.append([iso3, fatalities, industry_destroyed_pct])
+        results.append([iso3, fatalities, fatalities_pct, industry_destroyed_pct])
 
     # Save results to CSV
     with open("../results/nuclear_war_fatalities.csv", "w", newline="") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(
-            ["iso3", "population_loss", "industry_destroyed_pct"]
+            ["iso3", "population_loss", "population_loss_pct", "industry_destroyed_pct"]
         )  # Write header
         writer.writerows(results)
 

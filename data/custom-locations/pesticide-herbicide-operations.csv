@@ -1,0 +1,24 @@
+name,latitude,longitude,country,company,type
+St Gabriel,30.245750,-91.100088,USA,Syngenta,Herbicide
+Goa,15.499571,73.943898,India,Syngenta,Unknown
+Saint-Pierre-la-Garenne,49.159725,1.394220,France,Syngenta,Unknown
+Luling,29.923325,-90.354508,USA,Bayer,Herbicide
+Kansas City,39.121843,-94.474445,USA,Bayer,Unknown
+Muscatine,41.349846,-91.082853,USA,Bayer,Pesticide
+Dormagen,51.073432,6.841337,Germany,Bayer,Various
+Frankfurt,50.089278,8.523698,Germany,Bayer,Herbicide
+Vapi,20.368424,72.935146,India,Bayer,Various
+Chemiepark Knapsack,50.860153,6.870302,Germany,BASF,Unknown
+Industriepark Höchst,50.092835, 8.531066,Germany,BASF,Unknown
+Beaumont,29.970147, -94.052576,USA,BASF,Unknown
+Cernay,47.800420,7.194349,France,Corteva,Unknown
+Pittsburgh,38.025864,-121.856482,USA,Corteva,Unknown
+Mobile,30.953661,-88.018228,USA,FMC,Unknown
+Middleport,40.508780,-80.737880,USA,FMC,Unknown
+Panoli,21.547550,72.997960,India,FMC,Unknown
+Ankleshwar,21.626839,73.033812,India,UPL,Unknown
+Jhagadia,21.648470, 73.129191,India,UPL,Unknown
+Wyke,53.740742,-1.753978,UK,Nufarm,Unknown
+Gaillon,49.167391,1.379537,France,Nufarm,Unknown
+Chicago Heights,41.499415,-87.627016,USA,Nufarm,Unknown
+Oita,33.247289,131.684938,Japan,Sumitomo,Unknown
