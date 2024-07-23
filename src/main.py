@@ -1,5 +1,6 @@
 import csv
 import multiprocessing as mp
+import os
 import warnings
 
 import folium
@@ -458,7 +459,9 @@ class Country:
         """
         # (1) Apply population loss and infrastructure destruction
         max_radius_kill = np.sqrt(yield_kt / 15) * 3  # From Toon et al. 2008
-        max_radius_burn = np.sqrt(yield_kt / 15) * 2.03  # From Toon et al. 2008, linear scaling of burned area with yield, with 13 km² for Hiroshima
+        max_radius_burn = (
+            np.sqrt(yield_kt / 15) * 2.03
+        )  # From Toon et al. 2008, linear scaling of burned area with yield, with 13 km² for Hiroshima
         delta_lon_kill = max_radius_kill / 6371.0 / np.cos(np.radians(lat_groundzero))
         delta_lat_kill = max_radius_kill / 6371.0
         delta_lon_kill = delta_lon_kill * 180 / np.pi
@@ -572,6 +575,7 @@ class Country:
         show_hit_regions=False,
         show_population_density=False,
         show_industrial_areas=False,
+        show_custom_locations=False,
     ):
         """
         Make an interactive map
@@ -580,6 +584,7 @@ class Country:
             show_hit_regions (bool): if True, show the hit regions
             show_population_density (bool): if True, show the population density
             show_industrial_areas (bool): if True, show the industrial areas
+            show_custom_locations (bool): if True, show the custom locations from data/custom-locations/*.csv
         """
 
         # Create a folium map centered around the average coordinates
@@ -656,6 +661,28 @@ class Country:
                         opacity=0.5,
                         popup="Industrial Area",
                     ).add_to(m)
+
+        custom_locations_dir = "../data/custom-locations"
+        colors = ["red", "blue", "green", "purple", "orange"]
+        for i, filename in enumerate(os.listdir(custom_locations_dir)):
+            if filename.endswith(".csv"):
+                file_path = os.path.join(custom_locations_dir, filename)
+                color = colors[i % len(colors)]  # Cycle through colors
+                with open(file_path, "r") as csvfile:
+                    csv_reader = csv.DictReader(csvfile)
+                    for row in csv_reader:
+                        try:
+                            lat = float(row["latitude"])
+                            lon = float(row["longitude"])
+                            name = row["name"]
+                            folium.Marker(
+                                [lat, lon],
+                                popup=name,
+                                icon=folium.Icon(color=color, icon="info-sign"),
+                            ).add_to(m)
+                        except (ValueError, KeyError):
+                            # Skip rows with invalid data
+                            continue
 
         # Display the map
         m.save("interactive_map.html")
