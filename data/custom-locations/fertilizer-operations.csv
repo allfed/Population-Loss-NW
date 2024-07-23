@@ -1,30 +1,30 @@
-name,latitude,longitude,country,company,type
-Carseland Nitrogen,50.844363,-113.590122,Canada,Nutrien,Nitrogen
-Fort Saskatchewan Nitrogen,53.731334,-113.190459,Canada,Nutrien,Nitrogen
-Granum Nitrogen,53.731334,-113.190459,Canada,Nutrien,Nitrogen
-Joffre Nitrogen,52.321378,-113.517563,Canada,Nutrien,Nitrogen
-Redwater Nitrogen,53.842109,-113.095755,Canada,Nutrien,Nitrogen
+name,latitude,longitude,iso3,company,type
+Carseland Nitrogen,50.844363,-113.590122,CAN,Nutrien,Nitrogen
+Fort Saskatchewan Nitrogen,53.731334,-113.190459,CAN,Nutrien,Nitrogen
+Granum Nitrogen,53.731334,-113.190459,CAN,Nutrien,Nitrogen
+Joffre Nitrogen,52.321378,-113.517563,CAN,Nutrien,Nitrogen
+Redwater Nitrogen,53.842109,-113.095755,CAN,Nutrien,Nitrogen
 Augusta Nitrogen,33.443991,-81.930609,USA,Nutrien,Nitrogen
 Borger Nitrogen,35.645357,-101.427372,USA,Nutrien,Nitrogen
 Geismar Nitrogen,30.223377,-91.056122,USA,Nutrien,Nitrogen
 Kennewick Nitrogen,46.165824,-119.019211,USA,Nutrien,Nitrogen
 Lima Nitrogen,40.711476,-84.136400,USA,Nutrien,Nitrogen
 New Madrid Nitrogen,36.532480,-89.571167,USA,Nutrien,Nitrogen
-Trinidad Nitrogen,10.408166,-61.477022,Trinidad and Tobago,Nutrien,Nitrogen
-Yara Pocklington,53.924029,-0.801186,United Kingdom,Yara,Nitrogen
-Yara Sluiskil B.V.,51.271880,3.850067,Netherlands,Yara,Nitrogen
-Yara Tertre S.A./N.V,50.479236,3.802532,Belgium,Yara,Nitrogen
-Yara France Le Havre,49.479260,0.196513,France,Yara,Nitrogen
-Yara France Montoir-de-Bretagne,47.307764,-2.119179,France,Yara,Nitrogen
-Yara France Ambès,45.000726,-0.549651,France,Yara,Nitrogen
-Yara Italia S.p.A. - Ravenna,44.443600,12.237828,Italy,Yara,Nitrogen
-YARA Brunsbüttel GmbH,53.910816,9.208998,Germany,Yara,Nitrogen
-YARA GmbH & Co. KG,54.134532,12.300922,Germany,Yara,Nitrogen
-YARA Fertilizer Complex Babrala,28.288604,78.423263,India,Yara,Nitrogen
-Billingham Complex,54.593443,-1.269076,United Kingdom,CF Industries,Nitrogen
-Courtright Complex,42.763229,-82.452421,Canada,CF Industries,Nitrogen
+Trinidad Nitrogen,10.408166,-61.477022,TTO,Nutrien,Nitrogen
+Yara Pocklington,53.924029,-0.801186,GBR,Yara,Nitrogen
+Yara Sluiskil B.V.,51.271880,3.850067,NLD,Yara,Nitrogen
+Yara Tertre S.A./N.V,50.479236,3.802532,BEL,Yara,Nitrogen
+Yara France Le Havre,49.479260,0.196513,FRA,Yara,Nitrogen
+Yara France Montoir-de-Bretagne,47.307764,-2.119179,FRA,Yara,Nitrogen
+Yara France Ambès,45.000726,-0.549651,FRA,Yara,Nitrogen
+Yara Italia S.p.A. - Ravenna,44.443600,12.237828,ITA,Yara,Nitrogen
+YARA Brunsbüttel GmbH,53.910816,9.208998,DEU,Yara,Nitrogen
+YARA GmbH & Co. KG,54.134532,12.300922,DEU,Yara,Nitrogen
+YARA Fertilizer Complex Babrala,28.288604,78.423263,IND,Yara,Nitrogen
+Billingham Complex,54.593443,-1.269076,GBR,CF Industries,Nitrogen
+Courtright Complex,42.763229,-82.452421,CAN,CF Industries,Nitrogen
 Donaldsonville Complex,30.092295,-90.954096,USA,CF Industries,Nitrogen
-Medicine Hat Complex,50.089069,-110.716639,Canada,CF Industries,Nitrogen
+Medicine Hat Complex,50.089069,-110.716639,CAN,CF Industries,Nitrogen
 Port Neal Complex,42.329538,-96.378080,USA,CF Industries,Nitrogen
 Verdigris Complex,36.233267,-95.718547,USA,CF Industries,Nitrogen
 Waggaman Complex,29.961098,-90.269296,USA,CF Industries,Nitrogen
@@ -35,20 +35,20 @@ Joplin Phosphate,37.093086,-94.614344,USA,Nutrien,Phosphate
 Marseilles Phosphare,41.315841,-88.657126,USA,Nutrien,Phosphate
 Weeping Water Phosphate,40.863744,-96.130193,USA,Nutrien,Phosphate
 White Springs Phosphate,30.440374,-82.864116,USA,Nutrien,Phosphate
-Novomoskovskiy Azot,54.087780,38.218246,Russia,EuroChem,Nitrogen
-Nevinnomysskiy Azot,44.656799,41.937529,Russia,EuroChem,Nitrogen
-Phosphorit,59.396907,28.478130,Russia,EuroChem,Phosphate
-EuroChem-BMU,44.757669,39.765127,Russia,EuroChem,Phosphate
-Kalol,23.209001,72.525513,India,IFFCO,Nitrogen
-Kandla,23.036416,70.218164,India,IFFCO,Phosphate
-Phulpur,25.540162,82.048595,India,IFFCO,Nitrogen    
-Aonla,28.228196,79.248496,India,IFFCO,Nitrogen
-Paradeep,20.314956,86.660292,India,IFFCO,Phosphate
-Cherepovets,59.177443,37.697288,Russia,PhosAgro,Phosphate
-Solikamsk,59.624869,56.762554,Russia,Uralkali,Potash
-Berezniki,59.439516,56.937234,Russia,Uralkali,Potash
-Veliky Novgorod,58.620281,31.226419,Russia,Acron Group,Potash
-Dorogobuzh,54.948302,33.371564,Russia,Acron Group,Nitrogen
-Visakhapatnam,17.697788,83.238655,India,Coromandel International,Phosphate
-Kakinada,16.987024,82.272415,India,Coromandel International,Phosphate
-Ennore,13.216164,80.323783,India,Coromandel International,Phosphate
+Novomoskovskiy Azot,54.087780,38.218246,RUS,EuroChem,Nitrogen
+Nevinnomysskiy Azot,44.656799,41.937529,RUS,EuroChem,Nitrogen
+Phosphorit,59.396907,28.478130,RUS,EuroChem,Phosphate
+EuroChem-BMU,44.757669,39.765127,RUS,EuroChem,Phosphate
+Kalol,23.209001,72.525513,IND,IFFCO,Nitrogen
+Kandla,23.036416,70.218164,IND,IFFCO,Phosphate
+Phulpur,25.540162,82.048595,IND,IFFCO,Nitrogen    
+Aonla,28.228196,79.248496,IND,IFFCO,Nitrogen
+Paradeep,20.314956,86.660292,IND,IFFCO,Phosphate
+Cherepovets,59.177443,37.697288,RUS,PhosAgro,Phosphate
+Solikamsk,59.624869,56.762554,RUS,Uralkali,Potash
+Berezniki,59.439516,56.937234,RUS,Uralkali,Potash
+Veliky Novgorod,58.620281,31.226419,RUS,Acron Group,Potash
+Dorogobuzh,54.948302,33.371564,RUS,Acron Group,Nitrogen
+Visakhapatnam,17.697788,83.238655,IND,Coromandel International,Phosphate
+Kakinada,16.987024,82.272415,IND,Coromandel International,Phosphate
+Ennore,13.216164,80.323783,IND,Coromandel International,Phosphate

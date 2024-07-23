@@ -249,6 +249,36 @@ class Country:
         self.fatalities = []
         self.kilotonne = []
 
+        # Get ISO3 code for the country
+        try:
+            self.iso3 = pycountry.countries.search_fuzzy(country_name)[0].alpha_3
+        except LookupError:
+            self.iso3 = "Unknown"  # Use a placeholder if the country is not found
+
+        # Initialize an empty list to store DataFrames for each CSV file
+        dfs = []
+
+        # Iterate through CSV files in the custom locations directory
+        custom_locations_dir = "../data/custom-locations"
+        for filename in os.listdir(custom_locations_dir):
+            if filename.endswith(".csv"):
+                file_path = os.path.join(custom_locations_dir, filename)
+
+                # Read the CSV file
+                df = pd.read_csv(file_path)
+
+                # Select rows where iso3 matches self.iso3
+                df_filtered = df[df["iso3"] == self.iso3][
+                    ["name", "latitude", "longitude"]
+                ]
+
+                # Append the filtered DataFrame to the list
+                dfs.append(df_filtered)
+
+        # Concatenate all DataFrames in the list
+        self.custom_locations = pd.concat(dfs, ignore_index=True)
+        self.custom_locations["status"] = "intact"
+
         if industry:
             osm_file = (
                 f"../data/OSM/{country_name.lower().replace(' ', '-')}-industrial.osm"
@@ -525,6 +555,18 @@ class Country:
                     if overlapping.any():
                         overlapping_ids = self.industry[overlapping].index.tolist()
                         self.destroyed_industrial_areas.extend(overlapping_ids)
+                    # Check for destroyed custom locations
+                    for _, row in self.custom_locations.iterrows():
+                        custom_location_distance = haversine_distance(
+                            lat_pixel, lon_pixel, row.latitude, row.longitude
+                        )
+                        if custom_location_distance <= max_radius_burn:
+                            # Change the status of the custom location to "destroyed"
+                            self.custom_locations.loc[
+                                (self.custom_locations["latitude"] == row.latitude)
+                                & (self.custom_locations["longitude"] == row.longitude),
+                                "status",
+                            ] = "destroyed"
 
         if non_overlapping:
             # (2) Now we apply another mask to make sure there is no overlap with future nukes
@@ -569,6 +611,20 @@ class Country:
             self.industry_equal_area.index.isin(self.destroyed_industrial_areas)
         ].geometry.area.sum()
         return destroyed_area / self.total_industry_area
+
+    def get_number_destroyed_custom_locations(self):
+        """
+        Get the number of destroyed custom locations with uncertainty
+        """
+        number_destroyed = len(
+            self.custom_locations[self.custom_locations["status"] == "destroyed"]
+        )
+        total_locations = len(self.custom_locations)
+        fraction_destroyed = number_destroyed / total_locations
+        uncertainty = np.sqrt(fraction_destroyed * (1 - fraction_destroyed) / total_locations)
+        percentage = fraction_destroyed * 100
+        uncertainty_percentage = uncertainty * 100
+        return f"{number_destroyed} custom locations destroyed out of {total_locations} ({percentage:.1f}% ± {uncertainty_percentage:.1f}%)"
 
     def plot(
         self,
@@ -662,27 +718,17 @@ class Country:
                         popup="Industrial Area",
                     ).add_to(m)
 
-        custom_locations_dir = "../data/custom-locations"
-        colors = ["red", "blue", "green", "purple", "orange"]
-        for i, filename in enumerate(os.listdir(custom_locations_dir)):
-            if filename.endswith(".csv"):
-                file_path = os.path.join(custom_locations_dir, filename)
-                color = colors[i % len(colors)]  # Cycle through colors
-                with open(file_path, "r") as csvfile:
-                    csv_reader = csv.DictReader(csvfile)
-                    for row in csv_reader:
-                        try:
-                            lat = float(row["latitude"])
-                            lon = float(row["longitude"])
-                            name = row["name"]
-                            folium.Marker(
-                                [lat, lon],
-                                popup=name,
-                                icon=folium.Icon(color=color, icon="info-sign"),
-                            ).add_to(m)
-                        except (ValueError, KeyError):
-                            # Skip rows with invalid data
-                            continue
+        if show_custom_locations:
+            for i, row in enumerate(self.custom_locations.itertuples()):
+                if row.status == "destroyed":
+                    color = "red"
+                else:
+                    color = "green"
+                folium.Marker(
+                    [row.latitude, row.longitude],
+                    popup=row.name,
+                    icon=folium.Icon(color=color, icon="info-sign"),
+                ).add_to(m)
 
         # Display the map
         m.save("interactive_map.html")
@@ -778,13 +824,9 @@ def run_many_countries(
         industry_destroyed_pct = country.get_total_destroyed_industrial_area()
         print(f"{country_name}, industry destroyed: {100*industry_destroyed_pct:.2f}%")
 
-        # Get ISO3 code for the country
-        try:
-            iso3 = pycountry.countries.search_fuzzy(country_name)[0].alpha_3
-        except LookupError:
-            iso3 = "Unknown"  # Use a placeholder if the country is not found
-
-        results.append([iso3, fatalities, fatalities_pct, industry_destroyed_pct])
+        results.append(
+            [country.iso3, fatalities, fatalities_pct, industry_destroyed_pct]
+        )
 
     # Save results to CSV
     with open("../results/nuclear_war_fatalities.csv", "w", newline="") as csvfile:
