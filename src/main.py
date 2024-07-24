@@ -558,7 +558,7 @@ class Country:
                     # Check for destroyed custom locations
                     for _, row in self.custom_locations.iterrows():
                         custom_location_distance = haversine_distance(
-                            lat_pixel, lon_pixel, row.latitude, row.longitude
+                            lat_groundzero, lon_groundzero, row.latitude, row.longitude
                         )
                         if custom_location_distance <= max_radius_burn:
                             # Change the status of the custom location to "destroyed"
