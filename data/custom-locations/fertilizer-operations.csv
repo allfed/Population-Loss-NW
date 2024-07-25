@@ -1,73 +1,73 @@
-name,latitude,longitude,iso3,company,type
-Augusta Nitrogen,33.443991,-81.930609,USA,Nutrien,Nitrogen
-Borger Nitrogen,35.645357,-101.427372,USA,Nutrien,Nitrogen
-Geismar Nitrogen,30.223377,-91.056122,USA,Nutrien,Nitrogen
-Kennewick Nitrogen,46.165824,-119.019211,USA,Nutrien,Nitrogen
-Lima Nitrogen,40.711476,-84.136400,USA,Nutrien,Nitrogen
-New Madrid Nitrogen,36.532480,-89.571167,USA,Nutrien,Nitrogen
-Yara Pocklington,53.924029,-0.801186,GBR,Yara,Nitrogen
-Yara France Le Havre,49.479260,0.196513,FRA,Yara,Nitrogen
-Yara France Montoir-de-Bretagne,47.307764,-2.119179,FRA,Yara,Nitrogen
-Yara France Ambès,45.000726,-0.549651,FRA,Yara,Nitrogen
-YARA Brunsbüttel GmbH,53.910816,9.208998,DEU,Yara,Nitrogen
-YARA GmbH & Co. KG,54.134532,12.300922,DEU,Yara,Nitrogen
-YARA Fertilizer Complex Babrala,28.288604,78.423263,IND,Yara,Nitrogen
-Billingham Complex,54.593443,-1.269076,GBR,CF Industries,Nitrogen
-Donaldsonville Complex,30.092295,-90.954096,USA,CF Industries,Nitrogen
-Port Neal Complex,42.329538,-96.378080,USA,CF Industries,Nitrogen
-Verdigris Complex,36.233267,-95.718547,USA,CF Industries,Nitrogen
-Waggaman Complex,29.961098,-90.269296,USA,CF Industries,Nitrogen
-Woodward Complex,36.438022,-99.472341,USA,CF Industries,Nitrogen
-Yazoo City Complex,32.903259,-90.379845,USA,CF Industries,Nitrogen
-Aurora Phosphate,35.375233,-76.780625,USA,Nutrien,Phosphate
-Joplin Phosphate,37.093086,-94.614344,USA,Nutrien,Phosphate
-Marseilles Phosphare,41.315841,-88.657126,USA,Nutrien,Phosphate
-Weeping Water Phosphate,40.863744,-96.130193,USA,Nutrien,Phosphate
-White Springs Phosphate,30.440374,-82.864116,USA,Nutrien,Phosphate
-Novomoskovskiy Azot,54.087780,38.218246,RUS,EuroChem,Nitrogen
-Nevinnomysskiy Azot,44.656799,41.937529,RUS,EuroChem,Nitrogen
-Phosphorit,59.396907,28.478130,RUS,EuroChem,Phosphate
-EuroChem-BMU,44.757669,39.765127,RUS,EuroChem,Phosphate
-Kalol,23.209001,72.525513,IND,IFFCO,Nitrogen
-Kandla,23.036416,70.218164,IND,IFFCO,Phosphate
-Phulpur,25.540162,82.048595,IND,IFFCO,Nitrogen    
-Aonla,28.228196,79.248496,IND,IFFCO,Nitrogen
-Paradeep,20.314956,86.660292,IND,IFFCO,Phosphate
-Cherepovets,59.177443,37.697288,RUS,PhosAgro,Phosphate
-Solikamsk,59.624869,56.762554,RUS,Uralkali,Potash
-Berezniki,59.439516,56.937234,RUS,Uralkali,Potash
-Veliky Novgorod,58.620281,31.226419,RUS,Acron Group,Potash
-Dorogobuzh,54.948302,33.371564,RUS,Acron Group,Nitrogen
-Visakhapatnam,17.697788,83.238655,IND,Coromandel International,Phosphate
-Kakinada,16.987024,82.272415,IND,Coromandel International,Phosphate
-Ennore,13.216164,80.323783,IND,Coromandel International,Phosphate
-Goth Machhi,28.264635,70.069824,PAK,Fauji Fertilizer,Unknown
-Mirpur Mathelo,28.025097,69.586998,PAK,Fauji Fertilizer,Unknown
-Daharki,28.039502,69.675106,PAK,Engro,Unknown
-Enid,36.379698,-97.759212,USA,Koch Industries,Nitrogen
-Beatric,40.319148,-96.839676,USA,Koch Industries,Nitrogen
-New Wales,27.832079,-82.049802,USA,Mosaic,Phosphate
-Uncle Sam,30.038499,-90.828000,USA,Mosaic,Phosphate
-Wever,40.692380,-91.229721,USA,OCI,Nitrogen
-El Dorado,33.265505,-92.688942,USA,LSB,Nitrogen
-Pryor,36.241954,-95.278585,USA,LSB,Nitrogen
-Wittenberg,51.876023,12.585725,DEU,SKW Piesteritz,Nitrogen
-Unterbreizbach,50.839966,9.979606,DEU,K+S,Potash
-Pocatello,42.908450,-112.525726,USA,Simplot,Phosphate
-Rock Springs,41.542054,-109.132994,USA,Simplot,Phosphate
-Coffeyville,37.048593,-95.606118,USA,CVR Partners,Nitrogen
-East Dubuque,42.442980,-90.557528,USA,CVR Partners,Nitrogen
-Nangal,31.370154,76.356734,IND,NFL,Nitrogen
-Panipat,28.588889,76.356734,IND,NFL,Nitrogen
-Bathinda,30.250144,74.915209,IND,NFL,Nitrogen
-Vijaipur,24.498258,77.153370,IND,NFL,Nitrogen
-Thal,18.702207,72.871933,IND,RCF,Nitrogen
-Trombay,19.041680,72.885951,IND,RCF,Unknown
-Sikka,22.386816,69.858911,IND,GSFC,Unknown
-Vadodara,22.374790,73.153640,IND,GSFC,Unknown
-Gadepan,25.155149,76.181995,IND,CFCL,Unknown
-Manali,13.172403,80.265677,IND,Madras Fertilizers,Unknown
-Hazira,21.168393,72.704567,IND,Madras Fertilizers,Unknown
-Apatit,67.542603,33.725215,RUS,FosAgro,Phosphate
-Shahjahanpur,27.832119,79.826660,IND,Kribhco Shyam,Nitrogen
+name,latitude,longitude,iso3,company,type,industrial_in_osm
+Augusta Nitrogen,33.443991,-81.930609,USA,Nutrien,Nitrogen,True
+Borger Nitrogen,35.645357,-101.427372,USA,Nutrien,Nitrogen,True
+Geismar Nitrogen,30.223377,-91.056122,USA,Nutrien,Nitrogen,True
+Kennewick Nitrogen,46.165824,-119.019211,USA,Nutrien,Nitrogen,True
+Lima Nitrogen,40.711476,-84.136400,USA,Nutrien,Nitrogen,True
+New Madrid Nitrogen,36.532480,-89.571167,USA,Nutrien,Nitrogen,True
+Yara Pocklington,53.924029,-0.801186,GBR,Yara,Nitrogen,True
+Yara France Le Havre,49.479260,0.196513,FRA,Yara,Nitrogen,True
+Yara France Montoir-de-Bretagne,47.307764,-2.119179,FRA,Yara,Nitrogen,True
+Yara France Ambès,45.000726,-0.549651,FRA,Yara,Nitrogen,True
+YARA Brunsbüttel GmbH,53.910816,9.208998,DEU,Yara,Nitrogen,True
+YARA GmbH & Co. KG,54.134532,12.300922,DEU,Yara,Nitrogen,True
+YARA Fertilizer Complex Babrala,28.288604,78.423263,IND,Yara,Nitrogen,True
+Billingham Complex,54.593443,-1.269076,GBR,CF Industries,Nitrogen,True
+Donaldsonville Complex,30.092295,-90.954096,USA,CF Industries,Nitrogen,True
+Port Neal Complex,42.329538,-96.378080,USA,CF Industries,Nitrogen,True
+Verdigris Complex,36.233267,-95.718547,USA,CF Industries,Nitrogen,True
+Waggaman Complex,29.961098,-90.269296,USA,CF Industries,Nitrogen,True
+Woodward Complex,36.438022,-99.472341,USA,CF Industries,Nitrogen,True
+Yazoo City Complex,32.903259,-90.379845,USA,CF Industries,Nitrogen,True
+Aurora Phosphate,35.375233,-76.780625,USA,Nutrien,Phosphate,True
+Joplin Phosphate,37.093086,-94.614344,USA,Nutrien,Phosphate,True
+Marseilles Phosphare,41.315841,-88.657126,USA,Nutrien,Phosphate,True
+Weeping Water Phosphate,40.863744,-96.130193,USA,Nutrien,Phosphate,True
+White Springs Phosphate,30.440374,-82.864116,USA,Nutrien,Phosphate,True
+Novomoskovskiy Azot,54.087780,38.218246,RUS,EuroChem,Nitrogen,True
+Nevinnomysskiy Azot,44.656799,41.937529,RUS,EuroChem,Nitrogen,True
+Phosphorit,59.396907,28.478130,RUS,EuroChem,Phosphate,True
+EuroChem-BMU,44.757669,39.765127,RUS,EuroChem,Phosphate,True
+Kalol,23.209001,72.525513,IND,IFFCO,Nitrogen,False
+Kandla,23.036416,70.218164,IND,IFFCO,Phosphate,True
+Phulpur,25.540162,82.048595,IND,IFFCO,Nitrogen,True    
+Aonla,28.228196,79.248496,IND,IFFCO,Nitrogen,True
+Paradeep,20.314956,86.660292,IND,IFFCO,Phosphate,True
+Cherepovets,59.177443,37.697288,RUS,PhosAgro,Phosphate,True
+Solikamsk,59.624869,56.762554,RUS,Uralkali,Potash,True
+Berezniki,59.439516,56.937234,RUS,Uralkali,Potash,True
+Veliky Novgorod,58.620281,31.226419,RUS,Acron Group,Potash,True
+Dorogobuzh,54.948302,33.371564,RUS,Acron Group,Nitrogen,True
+Visakhapatnam,17.697788,83.238655,IND,Coromandel International,Phosphate,True
+Kakinada,16.987024,82.272415,IND,Coromandel International,Phosphate,True
+Ennore,13.216164,80.323783,IND,Coromandel International,Phosphate,True
+Goth Machhi,28.264635,70.069824,PAK,Fauji Fertilizer,Unknown,True
+Mirpur Mathelo,28.025097,69.586998,PAK,Fauji Fertilizer,Unknown,True
+Daharki,28.039502,69.675106,PAK,Engro,Unknown,True
+Enid,36.379698,-97.759212,USA,Koch Industries,Nitrogen,True
+Beatric,40.319148,-96.839676,USA,Koch Industries,Nitrogen,False
+New Wales,27.832079,-82.049802,USA,Mosaic,Phosphate,True
+Uncle Sam,30.038499,-90.828000,USA,Mosaic,Phosphate,True
+Wever,40.692380,-91.229721,USA,OCI,Nitrogen,True
+El Dorado,33.265505,-92.688942,USA,LSB,Nitrogen,True
+Pryor,36.241954,-95.278585,USA,LSB,Nitrogen,True
+Wittenberg,51.876023,12.585725,DEU,SKW Piesteritz,Nitrogen,True
+Unterbreizbach,50.839966,9.979606,DEU,K+S,Potash,True
+Pocatello,42.908450,-112.525726,USA,Simplot,Phosphate,True
+Rock Springs,41.542054,-109.132994,USA,Simplot,Phosphate,True
+Coffeyville,37.048593,-95.606118,USA,CVR Partners,Nitrogen,True
+East Dubuque,42.442980,-90.557528,USA,CVR Partners,Nitrogen,True
+Nangal,31.370154,76.356734,IND,NFL,Nitrogen,True
+Panipat,29.358006,76.960286,IND,NFL,Nitrogen,True
+Bathinda,30.250144,74.915209,IND,NFL,Nitrogen,True
+Vijaipur,24.498258,77.153370,IND,NFL,Nitrogen,True
+Thal,18.702207,72.871933,IND,RCF,Nitrogen,True
+Trombay,19.041680,72.885951,IND,RCF,Unknown,True
+Sikka,22.386816,69.858911,IND,GSFC,Unknown,True
+Vadodara,22.374790,73.153640,IND,GSFC,Unknown,True
+Gadepan,25.155149,76.181995,IND,CFCL,Unknown,True
+Manali,13.172403,80.265677,IND,Madras Fertilizers,Unknown,True
+Hazira,21.168393,72.704567,IND,Madras Fertilizers,Unknown,True
+Apatit,67.542603,33.725215,RUS,FosAgro,Phosphate,True
+Shahjahanpur,27.832119,79.826660,IND,Kribhco Shyam,Nitrogen,True
 
