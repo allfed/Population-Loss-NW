@@ -316,8 +316,8 @@ class Country:
         Returns:
             None. Sets self.data_averaged with the convolved population data.
         """
-        radius = int(1.15 * np.sqrt(yield_kt / 15) * 3 / self.approximate_resolution)
-        sigma = 1.15 * np.sqrt(yield_kt / 15) / self.approximate_resolution
+        radius = int(1.15 * np.sqrt(yield_kt / 18) * 3 / self.approximate_resolution)
+        sigma = 1.15 * np.sqrt(yield_kt / 18) / self.approximate_resolution
         x = np.arange(-radius, radius + 1)
         y = np.arange(-radius, radius + 1)
         x, y = np.meshgrid(x, y)
@@ -475,7 +475,12 @@ class Country:
         self.kilotonne.append(yield_kt)
 
     def apply_destruction(
-        self, lat_groundzero, lon_groundzero, yield_kt, non_overlapping=True
+        self,
+        lat_groundzero,
+        lon_groundzero,
+        yield_kt,
+        non_overlapping=True,
+        burn_radius_prescription="default",
     ):
         """
         Removing the population from the specified location and the max_radius_kill km around it and
@@ -486,12 +491,31 @@ class Country:
             lon (float): the longitude of the target location
             yield_kt (float): the yield of the warhead in kt
             non_overlapping (bool): if True, prohibit overlapping targets as Toon et al.
+            burn_radius_prescription (str): The method to calculate the burn radius. Options are:
+                - "default": Uses a scaling based on the average of Hiroshima and Nagasaki data,
+                  with an exponent of 0.47 derived from atmospheric transmission considerations.
+                - "Toon": Uses the formula from Toon et al. 2008, which assumes linear scaling
+                  of burned area with yield.
+                - "overpressure": Uses a scaling based on the average of Hiroshima and Nagasaki data,
+                  with an exponent of 1/3 based on overpressure considerations.
         """
         # (1) Apply population loss and infrastructure destruction
-        max_radius_kill = np.sqrt(yield_kt / 15) * 3  # From Toon et al. 2008
-        max_radius_burn = (
-            np.sqrt(yield_kt / 15) * 2.03
-        )  # From Toon et al. 2008, linear scaling of burned area with yield, with 13 km² for Hiroshima
+        max_radius_kill = np.sqrt(yield_kt / 18) * 3  # From Toon et al. 2008
+
+        if burn_radius_prescription == "Toon":
+            max_radius_burn = (
+                2.03 * (yield_kt / 15)**0.50
+            )  # From Toon et al. 2008, linear scaling of burned area with yield, with 13 km² for Hiroshima
+        elif burn_radius_prescription=="default":
+            max_radius_burn = (
+                1.77 * (yield_kt / 18)**0.47
+            )   # scales from average of Hiroshima and Nagasaki (13km² and 6.7km², 15kt and 21kt), also
+            # assumes that it scales like D**0.47 based on burn-radius-scaling.ipynb
+        elif burn_radius_prescription=="overpressure":
+            max_radius_burn = 1.77 * (yield_kt / 18)**(1/3)
+            # scales from average of Hiroshima and Nagasaki (13km² and 6.7km², 15kt and 21kt), also
+            # assumes that it scales like D**(1/3) based on discussion in burn-radius-scaling.ipynb
+
         delta_lon_kill = max_radius_kill / 6371.0 / np.cos(np.radians(lat_groundzero))
         delta_lat_kill = max_radius_kill / 6371.0
         delta_lon_kill = delta_lon_kill * 180 / np.pi
@@ -570,7 +594,7 @@ class Country:
 
         if non_overlapping:
             # (2) Now we apply another mask to make sure there is no overlap with future nukes
-            max_radius = 2 * np.sqrt(yield_kt / 15) * 3
+            max_radius = 2 * np.sqrt(yield_kt / 18) * 3
             delta_lon = max_radius / 6371.0 / np.cos(np.radians(lat_groundzero))
             delta_lat = max_radius / 6371.0
             delta_lon = delta_lon * 180 / np.pi
@@ -621,7 +645,9 @@ class Country:
         )
         total_locations = len(self.custom_locations)
         fraction_destroyed = number_destroyed / total_locations
-        uncertainty = np.sqrt(fraction_destroyed * (1 - fraction_destroyed) / total_locations)
+        uncertainty = np.sqrt(
+            fraction_destroyed * (1 - fraction_destroyed) / total_locations
+        )
         percentage = fraction_destroyed * 100
         uncertainty_percentage = uncertainty * 100
         return f"{number_destroyed} custom locations destroyed out of {total_locations} ({percentage:.1f}% ± {uncertainty_percentage:.1f}%)"
@@ -754,7 +780,8 @@ def get_fatality_rate(distance_from_groundzero, yield_kt, include_injuries=False
     """
     Calculates the fatality rate given the distance from the ground zero and the yield of the warhead in kt
 
-    Based on Toon et al. 2007, 2008
+    Based on Toon et al. 2007, 2008 but using average yield of Hiroshima and Nagasaki (15kt and 21kt)
+    for the scaling
 
     Args:
         distance_from_groundzero (float): the distance from the ground zero in km
@@ -767,7 +794,7 @@ def get_fatality_rate(distance_from_groundzero, yield_kt, include_injuries=False
         sigma0 = 1.87
     else:
         sigma0 = 1.15
-    sigma = sigma0 * np.sqrt(yield_kt / 15)
+    sigma = sigma0 * np.sqrt(yield_kt / 18)
     return np.exp(-(distance_from_groundzero**2) / (2 * sigma**2))
 
 
