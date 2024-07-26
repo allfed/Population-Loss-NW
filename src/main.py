@@ -504,15 +504,15 @@ class Country:
 
         if burn_radius_prescription == "Toon":
             max_radius_burn = (
-                2.03 * (yield_kt / 15)**0.50
+                2.03 * (yield_kt / 15) ** 0.50
             )  # From Toon et al. 2008, linear scaling of burned area with yield, with 13 km² for Hiroshima
-        elif burn_radius_prescription=="default":
+        elif burn_radius_prescription == "default":
             max_radius_burn = (
-                1.77 * (yield_kt / 18)**0.47
-            )   # scales from average of Hiroshima and Nagasaki (13km² and 6.7km², 15kt and 21kt), also
+                1.77 * (yield_kt / 18) ** 0.47
+            )  # scales from average of Hiroshima and Nagasaki (13km² and 6.7km², 15kt and 21kt), also
             # assumes that it scales like D**0.47 based on burn-radius-scaling.ipynb
-        elif burn_radius_prescription=="overpressure":
-            max_radius_burn = 1.77 * (yield_kt / 18)**(1/3)
+        elif burn_radius_prescription == "overpressure":
+            max_radius_burn = 1.77 * (yield_kt / 18) ** (1 / 3)
             # scales from average of Hiroshima and Nagasaki (13km² and 6.7km², 15kt and 21kt), also
             # assumes that it scales like D**(1/3) based on discussion in burn-radius-scaling.ipynb
 
@@ -846,20 +846,16 @@ def run_many_countries(
         fatalities = country.get_total_fatalities()
         print(f"{country_name}, fatalities: {fatalities}")
 
-        fatalities_pct = fatalities / country.data.sum() * 100
-
         industry_destroyed_pct = country.get_total_destroyed_industrial_area()
         print(f"{country_name}, industry destroyed: {100*industry_destroyed_pct:.2f}%")
 
-        results.append(
-            [country.iso3, fatalities, fatalities_pct, industry_destroyed_pct]
-        )
+        results.append([country.iso3, fatalities, industry_destroyed_pct])
 
     # Save results to CSV
     with open("../results/nuclear_war_fatalities.csv", "w", newline="") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(
-            ["iso3", "population_loss", "population_loss_pct", "industry_destroyed_pct"]
+            ["iso3", "population_loss", "industry_destroyed_pct"]
         )  # Write header
         writer.writerows(results)
 
