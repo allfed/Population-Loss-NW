@@ -33,7 +33,9 @@ In addition, industrial zones can be shown in purple or brown if they are burned
 * The code requires quite a bit of RAM if the target country is large. If this is an issue, you can use the `degrade` option to degrade the resolution of the LandScan data. The original resolution is 30 arc-seconds, so the individual pixels are somewhat smaller than 1 km² for the regions most susceptible to nuclear war.
 
 ## Codebase orientation
-Simply use `scripts/master.ipynb` to calculate the number of fatalities and loss of industrial capacity in a nuclear war given an attack with a given number of warheads against a given country. All the code is in `src/main.py`. `results` contains the number of fatalities and loss of industrial capacity for different scenarios.
+Simply use `scripts/master.ipynb` to calculate the number of fatalities and destruction of industrial capacity in a nuclear war given an attack with a given number of warheads against a given country. All the code is in `src/main.py`. `results` contains the number of fatalities and loss of industrial capacity for different scenarios.
+
+`scripts/HEMP.ipynb` contains the standalone code to calculate the disablement of industrial capacity due to HEMP. For the scenarios currently considered, EMP effects can be applied separately from the effects of direct destruction of industrial capacity. However, this could change in the future, which would necessitate a more integrated approach. This was avoided at this stage to keep the codebase simple.
 
 ## Verification
 To verify that the implementation is correct, we can compare to the [results](https://pubs.aip.org/view-large/figure/45882429/37_1_f1.jpg) of Toon et al. Below is a comparison between the number of casualties (in millions) in different scenarios. Note that this includes fatalities and injuries to facilitate the comparison with the results of Toon et al. Everything seems to work ok. Some numbers are significantly higher, but this can be attributed to population increase over the years (India in particular). Note that this verification was performed using the same 15 kt base yield as Toon et al. (the default code uses 18 kt).
@@ -72,4 +74,3 @@ This scenario is based on [Toon et al. 2008](https://pubs.aip.org/physicstoday/a
 * Distinguish between airburst and groundburst
 * Include counter-force targets
 * Calculate soot emission as in [Toon et al. 2008](https://pubs.aip.org/physicstoday/article/61/12/37/393240/Environmental-consequences-of-nuclear-warA)
-* Add HEMPs

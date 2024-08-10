@@ -924,3 +924,97 @@ def get_industrial_areas_from_osm(osm_file_path):
         handler.industrial_areas, columns=["id", "geometry"], crs="EPSG:4326"
     )
     return gdf
+
+
+def apply_emp_damage(
+    lat_groundzero,
+    lon_groundzero,
+    radius_km,
+    industry,
+):
+    """
+    Calculate the EMP damage to industrial areas within a radius of the detonation location
+
+    Args:
+        lat_groundzero (float): the latitude of the detonation location
+        lon_groundzero (float): the longitude of the detonation location
+        radius_km (float): the radius in km within which to assess EMP damage
+        industry (GeoDataFrame): the industrial areas in the affected country
+
+    Returns:
+        disabled_industrial_areas_idx (list): the indices of the disabled industrial areas
+    """
+    # Initialize list to store disabled industrial area IDs
+    disabled_industrial_areas_idx = []
+
+    # Iterate through each industrial area
+    for idx, row in industry.iterrows():
+        # Calculate the great-circle distance
+        distance = haversine_distance(
+            lat_groundzero,
+            lon_groundzero,
+            row.geometry.centroid.y,
+            row.geometry.centroid.x,
+        )
+
+        # Check if the industrial area is within the EMP radius
+        if distance <= radius_km:
+            disabled_industrial_areas_idx.append(idx)
+
+    return disabled_industrial_areas_idx
+
+def plot_emp_damage(
+    lat_groundzero,
+    lon_groundzero,
+    radius_km,
+    industry,
+    disabled_industrial_areas_idx,
+):
+    """
+    Create an interactive map showing the EMP damage area and affected industrial zones.
+
+    Args:
+        lat_groundzero (float): the latitude of the detonation location
+        lon_groundzero (float): the longitude of the detonation location
+        radius_km (float): the radius in km within which to assess EMP damage
+        industry (GeoDataFrame): the industrial areas in the affected country
+        disabled_industrial_areas_idx (list): the indices of the disabled industrial areas
+
+    Returns:
+        folium.Map: An interactive map object
+    """
+    # Create a folium map centered around the ground zero
+    m = folium.Map(location=[lat_groundzero, lon_groundzero], zoom_start=8)
+
+    # Add a marker for the ground zero
+    folium.Marker(
+        [lat_groundzero, lon_groundzero],
+        popup="Ground Zero",
+        icon=folium.Icon(color="red", icon="x"),
+    ).add_to(m)
+
+    # Add a circle for the EMP radius
+    folium.Circle(
+        radius=radius_km * 1000,  # Convert km to meters
+        location=[lat_groundzero, lon_groundzero],
+        popup=f"EMP Radius: {radius_km} km",
+        color="red",
+        fill=True,
+        fillColor="red",
+        fillOpacity=0.1,
+    ).add_to(m)
+
+    # Plot industrial areas
+    for idx, row in industry.iterrows():
+        color = "black" if idx in disabled_industrial_areas_idx else "purple"
+        folium.Polygon(
+            locations=[(y, x) for x, y in row.geometry.exterior.coords],
+            color=color,
+            fill=True,
+            fillColor=color,
+            fillOpacity=0.3,
+            popup="Disabled Industrial Area" if idx in disabled_industrial_areas_idx else "Industrial Area",
+        ).add_to(m)
+
+    return m
+
