@@ -24,6 +24,8 @@ In addition, industrial zones can be shown in purple or brown if they are burned
 
 ![200 100-kt strikes on Germany](images/germany-50-100kt-example-industry.png) 
 
+Finally, we also calculate the amount of soot emissions in Tg as in [Toon et al. 2008](https://pubs.aip.org/physicstoday/article/61/12/37/393240/Environmental-consequences-of-nuclear-warA)
+
 ## Data sources
 * [LandScan](https://landscan.ornl.gov/) for population data
 * [OSM](https://download.geofabrik.de/) for industrial data
@@ -31,6 +33,7 @@ In addition, industrial zones can be shown in purple or brown if they are burned
 ## Limitations
 * Nuclear fallout is not considered.
 * The code requires quite a bit of RAM if the target country is large. If this is an issue, you can use the `degrade` option to degrade the resolution of the LandScan data. The original resolution is 30 arc-seconds, so the individual pixels are somewhat smaller than 1 km² for the regions most susceptible to nuclear war.
+* Targeting only counter-value targets is not realistic: we should eventually consider counter-force targets as well.
 
 ## Codebase orientation
 Simply use `scripts/master.ipynb` to calculate the number of fatalities and destruction of industrial capacity in a nuclear war given an attack with a given number of warheads against a given country. All the code is in `src/main.py`. `results` contains the number of fatalities and loss of industrial capacity for different scenarios.
@@ -41,7 +44,7 @@ Simply use `scripts/master.ipynb` to calculate the number of fatalities and dest
 To verify that the implementation is correct, we can compare to the [results](https://pubs.aip.org/view-large/figure/45882429/37_1_f1.jpg) of Toon et al. Below is a comparison between the number of casualties (in millions) in different scenarios. Note that this includes fatalities and injuries to facilitate the comparison with the results of Toon et al. Everything seems to work ok. Some numbers are significantly higher, but this can be attributed to population increase over the years (India in particular). Note that this verification was performed using the same 15 kt base yield as Toon et al. (the default code uses 18 kt).
 
 
-| Scenario | Toon et al. | This code |
+| Scenario | Toon et al. | This code (Toon assumptions) |
 |----------|----------|----------|
 | Pakistan, 50x 15kt  | 18   |  22  |
 | Pakistan, 200x 100kt  | 50   |  66  |
@@ -61,16 +64,22 @@ To verify that the implementation is correct, we can compare to the [results](ht
 | France, 50x 15kt | 7 | 6 |
 | France, 200x 100kt | 23 | 20 |
 
+And here is a similar comparison for the amount of soot emissions in Tg. Note that for the second column in this table we use the same burn radius prescription as Toon et al., which is different from the default code (which scales from an average of Hiroshima and Nagasaki, and accounts from atmospheric absorption of thermal radiation - this is the assumption used in the third column).
+
+| Scenario | Toon et al. | This code (Toon assumptions) | This code (default assumptions) |
+|----------|----------|----------|----------|
+| France, 200x 100kt | 6.5 | 6.1 | 4.3 |
+| Germany, 200x 100kt | 7.3 | 7.2 | 5.1 |
+| UK, 200x 100kt | 7.4 | 7.6 | 5.4 |
+| India, 200x 100kt | 21.4 |  |  |
+| Japan, 200x 100kt | 11.9 |  |  | 
+| Pakistan, 200x 100kt | 11.0 |  |  |
+| US, 1000x 100kt | 28.1 |  |  |
+| Russia, 1100x 100kt | 26.9 |  |  |
+| China, 1100x 100kt | 59.5 |  |  |
 
 ## Scenarios considered
 See the `results` directory for the results of the scenarios considered.
 
 ### `Toon2008_SORT`
 This scenario is based on [Toon et al. 2008](https://pubs.aip.org/physicstoday/article/61/12/37/393240/Environmental-consequences-of-nuclear-war). In this scenario,  we assume that Russia targets 1000 weapons on the US and 200 warheads each on France, Germany, India, Japan, Pakistan, and the UK. We assume the US targets 1100 weapons each on China and Russia. Targets are selected by finding for a given country where to detonate a given number of warheads over the country's most populated region and without overlapping targets. In this scenario, total fatalities reach 570 million.
-
-
-## Potential improvements
-* Include radiation fallout
-* Distinguish between airburst and groundburst
-* Include counter-force targets
-* Calculate soot emission as in [Toon et al. 2008](https://pubs.aip.org/physicstoday/article/61/12/37/393240/Environmental-consequences-of-nuclear-warA)

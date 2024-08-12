@@ -241,13 +241,15 @@ class Country:
         self.lats = lats[min_lat_idx : max_lat_idx + 1]
         self.lons = lons[min_lon_idx : max_lon_idx + 1]
 
-        self.data = population_data_country
+        self.data = population_data_country.copy()
+        self.population_intact = population_data_country.copy()
 
         self.hit = np.zeros(population_data_country.shape)
         self.exclude = np.zeros(population_data_country.shape)
         self.target_list = []
         self.fatalities = []
         self.kilotonne = []
+        self.soot_Tg = 0
 
         # Get ISO3 code for the country
         try:
@@ -538,8 +540,8 @@ class Country:
         )[0]
 
         # Calculate pixel width and height
-        pixel_width = self.lons[1] - self.lons[0]
-        pixel_height = self.lats[1] - self.lats[0]
+        pixel_width = abs(self.lons[1] - self.lons[0])
+        pixel_height = abs(self.lats[1] - self.lats[0])
 
         # Apply the mask to the destroyed region
         for lat_idx_kill in lat_indices_kill:
@@ -568,17 +570,39 @@ class Country:
                     lat_pixel - lat_groundzero
                 ) ** 2 / delta_lat_burn**2 <= 1:
                     # destroy infrastructure
-                    self.hit[lat_idx_kill, lon_idx_kill] = 2
-                    pixel_box = box(
-                        lon_pixel - pixel_width / 2,
-                        lat_pixel - pixel_height / 2,
-                        lon_pixel + pixel_width / 2,
-                        lat_pixel + pixel_height / 2,
+                    distance_from_groundzero = haversine_distance(
+                        lat_pixel, lon_pixel, lat_groundzero, lon_groundzero
                     )
-                    overlapping = self.industry.intersects(pixel_box)
-                    if overlapping.any():
-                        overlapping_ids = self.industry[overlapping].index.tolist()
-                        self.destroyed_industrial_areas.extend(overlapping_ids)
+                    if distance_from_groundzero <= max_radius_burn:
+                        self.hit[lat_idx_kill, lon_idx_kill] = 2
+                        pixel_box = box(
+                            lon_pixel - pixel_width / 2,
+                            lat_pixel - pixel_height / 2,
+                            lon_pixel + pixel_width / 2,
+                            lat_pixel + pixel_height / 2,
+                        )
+                        overlapping = self.industry.intersects(pixel_box)
+                        if overlapping.any():
+                            overlapping_ids = self.industry[overlapping].index.tolist()
+                            self.destroyed_industrial_areas.extend(overlapping_ids)
+
+                        # Calculate soot emissions
+                        population_in_pixel = self.population_intact[
+                            lat_idx_kill, lon_idx_kill
+                        ]
+                        area_in_pixel = (
+                            pixel_width
+                            * pixel_height
+                            * 111.32
+                            * 111.32
+                            * np.cos(np.radians(lat_pixel))
+                        )
+                        soot_emissions_in_pixel = (
+                            area_in_pixel * 1.3e5 + population_in_pixel * 1.8e2
+                        )  # kg soot per pixel, from Toon et al. 2008
+
+                        self.soot_Tg += soot_emissions_in_pixel * 1e-9
+
                     # Check for destroyed custom locations
                     for _, row in self.custom_locations.iterrows():
                         custom_location_distance = haversine_distance(
@@ -963,6 +987,7 @@ def apply_emp_damage(
 
     return disabled_industrial_areas_idx
 
+
 def plot_emp_damage(
     lat_groundzero,
     lon_groundzero,
@@ -1013,8 +1038,11 @@ def plot_emp_damage(
             fill=True,
             fillColor=color,
             fillOpacity=0.3,
-            popup="Disabled Industrial Area" if idx in disabled_industrial_areas_idx else "Industrial Area",
+            popup=(
+                "Disabled Industrial Area"
+                if idx in disabled_industrial_areas_idx
+                else "Industrial Area"
+            ),
         ).add_to(m)
 
     return m
-
