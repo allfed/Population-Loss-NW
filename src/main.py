@@ -951,18 +951,16 @@ def get_industrial_areas_from_osm(osm_file_path):
 
 
 def apply_emp_damage(
-    lat_groundzero,
-    lon_groundzero,
-    radius_km,
+    ground_zeros,
+    radius_kms,
     industry,
 ):
     """
-    Calculate the EMP damage to industrial areas within a radius of the detonation location
+    Calculate the EMP damage to industrial areas within radii of multiple detonation locations
 
     Args:
-        lat_groundzero (float): the latitude of the detonation location
-        lon_groundzero (float): the longitude of the detonation location
-        radius_km (float): the radius in km within which to assess EMP damage
+        ground_zeros (list): list of tuples containing (latitude, longitude) of the detonation locations
+        radius_kms (list): the radii in km within which to assess EMP damage for each detonation
         industry (GeoDataFrame): the industrial areas in the affected country
 
     Returns:
@@ -973,76 +971,79 @@ def apply_emp_damage(
 
     # Iterate through each industrial area
     for idx, row in industry.iterrows():
-        # Calculate the great-circle distance
-        distance = haversine_distance(
-            lat_groundzero,
-            lon_groundzero,
-            row.geometry.centroid.y,
-            row.geometry.centroid.x,
-        )
+        # Check if the industrial area is within any EMP radius
+        for (lat_gz, lon_gz), radius_km in zip(ground_zeros, radius_kms):
+            distance = haversine_distance(
+                lat_gz,
+                lon_gz,
+                row.geometry.centroid.y,
+                row.geometry.centroid.x,
+            )
 
-        # Check if the industrial area is within the EMP radius
-        if distance <= radius_km:
-            disabled_industrial_areas_idx.append(idx)
+            if distance <= radius_km:
+                disabled_industrial_areas_idx.append(idx)
+                break  # No need to check other EMPs if already disabled
 
     return disabled_industrial_areas_idx
 
 
 def plot_emp_damage(
-    lat_groundzero,
-    lon_groundzero,
-    radius_km,
+    ground_zeros,
+    radii_km,
     industry,
     disabled_industrial_areas_idx,
+    show_industry=True,
 ):
     """
-    Create an interactive map showing the EMP damage area and affected industrial zones.
+    Create an interactive map showing the EMP damage areas and affected industrial zones.
 
     Args:
-        lat_groundzero (float): the latitude of the detonation location
-        lon_groundzero (float): the longitude of the detonation location
-        radius_km (float): the radius in km within which to assess EMP damage
+        ground_zeros (list): list of tuples containing (latitude, longitude) of the detonation locations
+        radii_km (list): list of radii in km within which to assess EMP damage for each detonation
         industry (GeoDataFrame): the industrial areas in the affected country
         disabled_industrial_areas_idx (list): the indices of the disabled industrial areas
-
+        show_industry (bool): if True, show the industrial areas
     Returns:
         folium.Map: An interactive map object
     """
-    # Create a folium map centered around the ground zero
-    m = folium.Map(location=[lat_groundzero, lon_groundzero], zoom_start=8)
+    # Create a folium map centered around the first ground zero
+    m = folium.Map(location=ground_zeros[0], zoom_start=8)
 
-    # Add a marker for the ground zero
-    folium.Marker(
-        [lat_groundzero, lon_groundzero],
-        popup="Ground Zero",
-        icon=folium.Icon(color="red", icon="x"),
-    ).add_to(m)
+    # Add markers and circles for each ground zero
+    for (lat_groundzero, lon_groundzero), radius_km in zip(ground_zeros, radii_km):
+        # Add a marker for the ground zero
+        folium.Marker(
+            [lat_groundzero, lon_groundzero],
+            popup="Ground Zero",
+            icon=folium.Icon(color="red", icon="x"),
+        ).add_to(m)
 
-    # Add a circle for the EMP radius
-    folium.Circle(
-        radius=radius_km * 1000,  # Convert km to meters
-        location=[lat_groundzero, lon_groundzero],
-        popup=f"EMP Radius: {radius_km} km",
-        color="red",
-        fill=True,
-        fillColor="red",
-        fillOpacity=0.1,
-    ).add_to(m)
+        # Add a circle for the EMP radius
+        folium.Circle(
+            radius=radius_km * 1000,  # Convert km to meters
+            location=[lat_groundzero, lon_groundzero],
+            popup=f"EMP Radius: {radius_km} km",
+            color="red",
+            fill=True,
+            fillColor="red",
+            fillOpacity=0.1,
+        ).add_to(m)
 
     # Plot industrial areas
-    for idx, row in industry.iterrows():
-        color = "black" if idx in disabled_industrial_areas_idx else "purple"
-        folium.Polygon(
-            locations=[(y, x) for x, y in row.geometry.exterior.coords],
-            color=color,
-            fill=True,
-            fillColor=color,
-            fillOpacity=0.3,
-            popup=(
-                "Disabled Industrial Area"
-                if idx in disabled_industrial_areas_idx
-                else "Industrial Area"
-            ),
-        ).add_to(m)
+    if show_industry:
+        for idx, row in industry.iterrows():
+            color = "black" if idx in disabled_industrial_areas_idx else "purple"
+            folium.Polygon(
+                locations=[(y, x) for x, y in row.geometry.exterior.coords],
+                color=color,
+                fill=True,
+                fillColor=color,
+                fillOpacity=0.3,
+                popup=(
+                    "Disabled Industrial Area"
+                    if idx in disabled_industrial_areas_idx
+                    else "Industrial Area"
+                ),
+            ).add_to(m)
 
     return m

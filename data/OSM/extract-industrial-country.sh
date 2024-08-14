@@ -5,6 +5,7 @@ echo "Welcome to the Industrial Landuse Data Extractor!"
 # Declare an associative array to map countries to regions
 declare -A country_region=(
     ["albania"]="europe"
+    ["algeria"]="africa"
     ["argentina"]="south-america"
     ["australia"]="australia-oceania"
     ["austria"]="europe"
