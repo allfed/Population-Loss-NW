@@ -38,10 +38,10 @@ dependencies:
   - bzip2=1.0.8=hd590300_5
   - c-ares=1.28.1=hd590300_0
   - c-blosc2=2.14.4=hb4ffafa_1
-  - ca-certificates=2024.6.2=hbcca054_0
+  - ca-certificates=2024.7.4=hbcca054_0
   - cairo=1.18.0=h3faef2a_0
   - cartopy=0.23.0=py312h1d6d2e6_1
-  - certifi=2024.6.2=pyhd8ed1ab_0
+  - certifi=2024.7.4=pyhd8ed1ab_0
   - cfitsio=4.4.0=hbdc6101_1
   - charls=2.4.2=h59595ed_0
   - charset-normalizer=3.3.2=pyhd8ed1ab_0
@@ -55,6 +55,7 @@ dependencies:
   - dbus=1.13.6=h5008d03_3
   - debugpy=1.8.1=py312h30efb56_0
   - decorator=5.1.1=pyhd8ed1ab_0
+  - et_xmlfile=1.1.0=pyhd8ed1ab_0
   - exceptiongroup=1.2.0=pyhd8ed1ab_2
   - executing=2.0.1=pyhd8ed1ab_0
   - expat=2.6.2=h59595ed_0
@@ -206,7 +207,8 @@ dependencies:
   - nss=3.100=hca3bf56_0
   - numpy=1.26.4=py312heda63a1_0
   - openjpeg=2.5.2=h488ebb8_0
-  - openssl=3.3.1=h4ab18f5_0
+  - openpyxl=3.1.5=py312h98912ed_0
+  - openssl=3.3.1=h4bc722e_2
   - overpy=0.7=pyhd8ed1ab_0
   - packaging=24.1=pyhd8ed1ab_0
   - pandas=2.2.2=py312h1d6d2e6_1

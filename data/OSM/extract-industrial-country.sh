@@ -11,6 +11,7 @@ declare -A country_region=(
     ["austria"]="europe"
     ["bangladesh"]="asia"
     ["bahamas"]="central-america"
+    ["belarus"]="europe"
     ["belgium"]="europe"
     ["bolivia"]="south-america"
     ["brazil"]="south-america"

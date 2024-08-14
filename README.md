@@ -26,6 +26,8 @@ In addition, industrial zones can be shown in purple or brown if they are burned
 
 Finally, we also calculate the amount of soot emissions in Tg as in [Toon et al. 2008](https://pubs.aip.org/physicstoday/article/61/12/37/393240/Environmental-consequences-of-nuclear-warA)
 
+Note that other targeting options are also supported. Currently, there is an option for following the [OPEN-RISOP](https://github.com/davidteter/OPEN-RISOP/tree/main/TARGET%20LAYDOWNS) target list for the US, and an option for following the [declassified 1956 US target list](https://futureoflife.org/resource/us-nuclear-targets/) for Russia and China.
+
 ## Data sources
 * [LandScan](https://landscan.ornl.gov/) for population data
 * [OSM](https://download.geofabrik.de/) for industrial data

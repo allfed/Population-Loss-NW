@@ -1,6 +1,8 @@
 import csv
+import json
 import multiprocessing as mp
 import os
+import re
 import warnings
 
 import folium
@@ -152,6 +154,7 @@ class Country:
              [min_lon, max_lon, min_lat, max_lat]. This is optional and if not provided, the entire country is used.
             industry (bool): if True, then load industrial zones
         """
+        self.country_name = country_name
         # Load landscan data
         self.degrade_factor = degrade_factor
         if use_HD:
@@ -446,7 +449,50 @@ class Country:
 
         return max_population_lat, max_population_lon
 
-    def attack_specific_target(self, lat, lon, yield_kt, CEP, include_injuries=False):
+    def apply_1956_US_nuclear_war_plan(self, yield_kt, include_injuries=False):
+        """
+        Attack all locations within the country's borders using the 1956 US nuclear war plan
+
+        Args:
+            yield_kt (float): the yield in kt for all warheads used
+            include_injuries (bool): if True, include injuries in the fatality calculation
+        """
+        self.hit = np.zeros(self.data.shape)
+        self.target_list = []
+        self.fatalities = []
+        self.kilotonne = []
+
+        targets = get_1956_US_nuclear_war_plan(self.country_name)
+        for city, (lat, lon) in targets.items():
+            self.attack_specific_target(
+                lat, lon, yield_kt, include_injuries=include_injuries
+            )
+        return
+    
+    def apply_OPEN_RISOP_nuclear_war_plan(self, yield_kt, include_injuries=False):
+        """
+        Attack all locations in the OPEN RISOP database. Only valid for the US.
+
+        Args:
+            yield_kt (float): the yield of the warhead in kt
+            include_injuries (bool): if True, include injuries in the fatality calculation
+        """
+        if self.country_name != "United States":
+            raise ValueError("OPEN RISOP nuclear war plan only valid for the US")
+
+        self.hit = np.zeros(self.data.shape)
+        self.target_list = []
+        self.fatalities = []
+        self.kilotonne = []
+
+        targets = get_OPEN_RISOP_nuclear_war_plan()
+        for city, (lat, lon) in targets.items():
+            self.attack_specific_target(
+                lat, lon, yield_kt, include_injuries=include_injuries
+            )
+        return
+
+    def attack_specific_target(self, lat, lon, yield_kt, CEP=0, include_injuries=False):
         """
         Attack a specific location in the country, with a circular error probable of the weapon (in meters)
 
@@ -463,11 +509,11 @@ class Country:
 
         # Calculate new lat/lon based on random offset
         angle = np.random.uniform(0, 2 * np.pi)
-        delta_lat = distance_from_intended_target * np.cos(angle) / 111111
+        delta_lat = distance_from_intended_target * np.cos(angle) / 111320
         delta_lon = (
             distance_from_intended_target
             * np.sin(angle)
-            / (111111 * np.cos(np.radians(lat)))
+            / (111320 * np.cos(np.radians(lat)))
         )
         actual_lat = lat + delta_lat
         actual_lon = lon + delta_lon
@@ -675,6 +721,18 @@ class Country:
         percentage = fraction_destroyed * 100
         uncertainty_percentage = uncertainty * 100
         return f"{number_destroyed} custom locations destroyed out of {total_locations} ({percentage:.1f}% ± {uncertainty_percentage:.1f}%)"
+
+    def print_diagnostic_info(self):
+        """
+        Print diagnostic information
+        """
+        print(
+            f"Total fatalities: {self.get_total_fatalities()} ({self.get_total_fatalities()/self.population_intact.sum()*100:.1f}%)"
+        )
+        print(
+            f"Total destroyed industrial area: {100*self.get_total_destroyed_industrial_area():.1f}%"
+        )
+        print(f"Soot emissions: {self.soot_Tg:.1f} Tg")
 
     def plot(
         self,
@@ -1047,3 +1105,65 @@ def plot_emp_damage(
             ).add_to(m)
 
     return m
+
+
+def get_1956_US_nuclear_war_plan(country):
+    """
+    Parse the US1956_target_definitions.js file to build a dict of nuclear targets
+    for a specific country.
+
+    Args:
+        country (str): The name of the country to filter targets for.
+
+    Returns:
+        dict: A dictionary of targets with city names as keys and tuples of
+              (latitude, longitude) as values.
+    """
+    # Read the contents of the JS file
+    with open("../data/target-lists/US1956_target_definitions.js", "r") as file:
+        js_content = file.read()
+
+    # Extract the JSON-like string from the JS file
+    json_str = re.search(r"var targets=(\{.*?\});", js_content, re.DOTALL)
+    if not json_str:
+        raise ValueError("Could not find targets data in the JS file")
+
+    # Parse the JSON-like string
+    targets_data = json.loads(json_str.group(1))
+
+    # Filter and format the targets for the specified country
+    country_targets = {}
+    for feature in targets_data["features"]:
+        if feature["properties"]["Country"] == country:
+            city = feature["properties"]["City"]
+            lon, lat = feature["geometry"]["coordinates"]
+            country_targets[city] = (lat, lon)
+
+    if len(country_targets) == 0:
+        raise ValueError(f"No targets found for {country}")
+
+    return country_targets
+
+
+def get_OPEN_RISOP_nuclear_war_plan():
+    """
+    Get the nuclear war plan from the OPEN RISOP database
+
+    Returns:
+        dict: A dictionary of targets with names as keys and tuples of
+                (latitude, longitude) as values.
+    """
+    # Read the Excel file
+    df = pd.read_excel(
+        "../data/target-lists/OPEN-RISOP 1.00 MIXED COUNTERFORCE+COUNTERVALUE ATTACK.xlsx"
+    )
+
+    # Create a dictionary with the required structure
+    targets = {}
+    for _, row in df.iterrows():
+        name = row["Name"]
+        lat = row["Latitude"]
+        lon = row["Longitude"]
+        targets[name] = (lat, lon)
+
+    return targets
