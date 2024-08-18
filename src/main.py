@@ -477,7 +477,7 @@ class Country:
             yield_kt (float): the yield of the warhead in kt
             include_injuries (bool): if True, include injuries in the fatality calculation
         """
-        if self.country_name != "United States":
+        if self.country_name != "United States of America":
             raise ValueError("OPEN RISOP nuclear war plan only valid for the US")
 
         self.hit = np.zeros(self.data.shape)
