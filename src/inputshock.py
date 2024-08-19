@@ -1,6 +1,7 @@
 import os
-import numpy as np
 import matplotlib.pyplot as plt
+import multiprocessing
+import numpy as np
 import pandas as pd
 import rasterio
 from rasterio.mask import mask
@@ -233,6 +234,53 @@ def calculate_agriculture_loss(country, N_loss, P_loss, K_loss, pesticide_loss):
     return total_weighted_loss
 
 
+def process_country(
+    country, N_loss, P_loss, K_loss, pesticide_loss, existing_countries, results
+):
+    """
+    Process a single country and calculate its agriculture loss. Helper function for multiprocessing
+    in calculate_agriculture_loss_for_all_countries.
+    """
+    if (
+        country not in existing_countries
+        and "FAO" not in country
+        and "World" not in country
+        and "countries" not in country
+        and "former" not in country
+        and "USSR" not in country
+        and "(" not in country
+        and "Africa" not in country
+        and "Asia" not in country
+        and "Europe" not in country
+        and "Oceania" not in country
+        and "South America" not in country
+        and "North America" not in country
+        and "Czechoslovakia" not in country
+        and "Yugoslavia" not in country
+        and "Serbia and Montenegro" not in country
+        and "Polynesia" not in country
+        and "Bahamas" not in country
+        and "Hong Kong" not in country
+        and "Macao" not in country
+        and "Melanesia" not in country
+        and "Netherlands Antilles" not in country
+        and "Sao Tome and Principe" not in country
+    ):
+        ans = calculate_agriculture_loss(
+            country, N_loss, P_loss, K_loss, pesticide_loss
+        )
+        results.append({"country": country, "yield_loss_pct": ans})
+
+        # Append the current result to CSV as a backup
+        results_df = pd.DataFrame([{"country": country, "yield_loss_pct": ans}])
+        results_df.to_csv(
+            "../results/yield_loss_results.csv",
+            mode="a",
+            header=not os.path.exists("../results/yield_loss_results.csv"),
+            index=False,
+        )
+
+
 def calculate_agriculture_loss_for_all_countries(
     N_loss, P_loss, K_loss, pesticide_loss
 ):
@@ -259,44 +307,21 @@ def calculate_agriculture_loss_for_all_countries(
     else:
         existing_countries = set()
 
-    for country in df.Country.unique():
-        if (
-            country not in existing_countries
-            and "FAO" not in country
-            and "World" not in country
-            and "countries" not in country
-            and "former" not in country
-            and "USSR" not in country
-            and "(" not in country
-            and "Africa" not in country
-            and "Asia" not in country
-            and "Europe" not in country
-            and "Oceania" not in country
-            and "South America" not in country
-            and "North America" not in country
-            and "Czechoslovakia" not in country
-            and "Yugoslavia" not in country
-            and "Serbia and Montenegro" not in country
-            and "Polynesia" not in country
-            and "Bahamas" not in country
-            and "Hong Kong" not in country
-            and "Macao" not in country
-            and "Melanesia" not in country
-            and "Netherlands Antilles" not in country
-            and "Sao Tome and Principe" not in country
-        ):
-            ans = calculate_agriculture_loss(
-                country, N_loss, P_loss, K_loss, pesticide_loss
-            )
-            results.append({"country": country, "yield_loss_pct": ans})
-
-            # Append the current result to CSV as a backup
-            results_df = pd.DataFrame([{"country": country, "yield_loss_pct": ans}])
-            results_df.to_csv(
-                "../results/yield_loss_results.csv",
-                mode="a",
-                header=not os.path.exists("../results/yield_loss_results.csv"),
-                index=False,
-            )
+    with multiprocessing.Pool(multiprocessing.cpu_count()) as pool:
+        pool.starmap(
+            process_country,
+            [
+                (
+                    country,
+                    N_loss,
+                    P_loss,
+                    K_loss,
+                    pesticide_loss,
+                    existing_countries,
+                    results,
+                )
+                for country in df.Country.unique()
+            ],
+        )
 
     print("Results saved to ../results/yield_loss_results.csv")
