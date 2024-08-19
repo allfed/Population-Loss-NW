@@ -56,26 +56,31 @@ To translate the loss of industrial capacity into loss of agricultural productio
 ## Verification
 To verify that the population loss implementation is correct, we can compare to the [results](https://pubs.aip.org/view-large/figure/45882429/37_1_f1.jpg) of Toon et al. Below is a comparison between the number of casualties (in millions) in different scenarios. Note that this includes fatalities and injuries to facilitate the comparison with the results of Toon et al. Everything seems to work ok. Some numbers are significantly higher, but this can be attributed to population increase over the years (India in particular). Note that this verification was performed using the same 15 kt base yield as Toon et al. (the default code uses 18 kt).
 
-
 | Scenario | Toon et al. | This code (Toon assumptions) |
 |----------|----------|----------|
 | Pakistan, 50x 15kt  | 18   |  22  |
-| Pakistan, 200x 100kt  | 50   |  66  |
 | UK, 50x 15kt | 6 | 6 |
+| India, 50x 15kt | 26 | 34 |
+| Japan, 50x 15kt | 13 | 11 |
+| US, 50x 15kt | 8 | 8 |
+| Russia, 50x 15kt | 12 | 8 |
+| China, 50x 15kt | 32 | 24 |
+| France, 50x 15kt | 7 | 6 |
+| **Total** | **122** | **119** |
+
+
+| Scenario | Toon et al. | This code (Toon assumptions) |
+|----------|----------|----------|
+| Pakistan, 200x 100kt  | 50   |  66  |
 | UK, 200x 100kt | 28 | 29 |
 | Germany, 200x 100kt | 28 | 26 |
-| India, 50x 15kt | 26 | 34 |
 | India, 200x 100kt | 116 | 172 |
-| Japan, 50x 15kt | 13 | 11 |
 | Japan, 200x 100kt | 59 | 50 |
-| US, 50x 15kt | 8 | 8 |
 | US, 1000x 100kt | 104 | 108 |
-| Russia, 50x 15kt | 12 | 8 |
 | Russia, 1100x 100kt | 76 | 66 |
-| China, 50x 15kt | 32 | 24 |
 | China, 1100x 100kt | 287 | 314 |
-| France, 50x 15kt | 7 | 6 |
 | France, 200x 100kt | 23 | 20 |
+| **Total** | **771** | **851** |
 
 And here is a similar comparison for the amount of soot emissions in Tg. Note that for the second column in this table we use the same burn radius prescription as Toon et al., which is different from the default code (which scales from an average of Hiroshima and Nagasaki, and accounts from atmospheric absorption of thermal radiation - this is the assumption used in the third column).
 
@@ -84,12 +89,13 @@ And here is a similar comparison for the amount of soot emissions in Tg. Note th
 | France, 200x 100kt | 6.5 | 6.1 | 4.3 |
 | Germany, 200x 100kt | 7.3 | 7.2 | 5.1 |
 | UK, 200x 100kt | 7.4 | 7.6 | 5.4 |
-| India, 200x 100kt | 21.4 |  |  |
-| Japan, 200x 100kt | 11.9 |  |  | 
-| Pakistan, 200x 100kt | 11.0 |  |  |
-| US, 1000x 100kt | 28.1 |  |  |
-| Russia, 1100x 100kt | 26.9 |  |  |
-| China, 1100x 100kt | 59.5 |  |  |
+| India, 200x 100kt | 21.4 | 33.8 | 25.4 |
+| Japan, 200x 100kt | 11.9 | 11.1 | 7.7 | 
+| Pakistan, 200x 100kt | 11.0 | 14.4 | 10.1 |
+| US, 1000x 100kt | 28.1 | 29.7 | 22.7 |
+| Russia, 1100x 100kt | 26.9 | 23.7 | 17.8 |
+| China, 1100x 100kt | 59.5 | 64.9 | 56.0 |
+| **Total** | **180** | **198.5** | **154.5** |
 
 ## Scenarios considered
 See the `results` directory for the results of the scenarios considered.
