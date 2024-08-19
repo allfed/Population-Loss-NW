@@ -1,5 +1,5 @@
 # Population-Loss-NW
-Estimate fatalities and loss of industry in the direct aftermath of a nuclear war
+Estimate fatalities and loss of industry in the direct aftermath of a nuclear war. Also estimates yield decrease due to loss of agricultural inputs.
 
 
 ## Installation
@@ -10,6 +10,7 @@ Estimate fatalities and loss of industry in the direct aftermath of a nuclear wa
 5. (Optional) Download the HD LandScan data to the `data/LandScan` directory if you want to use the HD version of the LandScan data. It can be downloaded [here](https://landscan.ornl.gov/).
 
 ## Methodology
+### Destruction and population loss
 Here we use the methodology of [Toon et al. 2007](https://acp.copernicus.org/articles/7/1973/2007/acp-7-1973-2007.pdf) and [Toon et al. 2008](https://pubs.aip.org/physicstoday/article/61/12/37/393240/Environmental-consequences-of-nuclear-warA) to estimate the number of fatalities in the aftermath of a nuclear war.
 
 In Hiroshima and Nagasaki data a normal distribution around ground zero was measured for the fatality rate, $\alpha(R) = e^{-\frac{R^2}{2 \sigma^2}}$, where $R$ is the distance from ground zero and $\sigma=1.15$ km for a 15 kt airburst. Following Toon et al. 2008, the width of this distribution is assumed to scale as $\sqrt{\frac{Y}{15\,{\rm kt}}}$, where $Y$ is the yield of the nuclear weapon. This is so that the area with a given $\alpha(R)$ contours scales linearly with $Y$. Note that this excludes fatalities related to radioactive fallout, which depends on a number of hard to predict factors (sheltering, evacuation, weather, etc.). Note that I actually scale using an average of Hiroshima and Nagasaki yields (so 18 kt), which is different from Toon et al. but more defensible.
@@ -28,24 +29,29 @@ Finally, we also calculate the amount of soot emissions in Tg as in [Toon et al.
 
 Note that other targeting options are also supported. Currently, there is an option for following the [OPEN-RISOP](https://github.com/davidteter/OPEN-RISOP/tree/main/TARGET%20LAYDOWNS) target list for the US, and an option for following the [declassified 1956 US target list](https://futureoflife.org/resource/us-nuclear-targets/) for Russia and China.
 
+### Agricultural loss
+To translate the loss of industrial capacity into loss of agricultural production, we use the data from [Ahvo et al. 2023](https://doi.org/10.1038/s43016-023-00873-z). First, we calculate the loss of fertilizers and pesticides due to the destruction or disablement of industrial capacity using data for fertilizer and pesticide production by country. Then, we use the data from Ahvo et al. to estimate the loss of agricultural production due to the loss of fertilizers and pesticides. This is done for each country separately assuming that the loss of fertilizers and pesticides applies globally. For each country, we calculate the loss of agricultural production for 12 crops and average these numbers using the number of calories supplied by each crop as weights. We are making the assumption that all yield loss sources are multiplicative.
+
 ## Data sources
 * [LandScan](https://landscan.ornl.gov/) for population data
 * [OSM](https://download.geofabrik.de/) for industrial data
+* [BACI](https://www.cepii.fr/CEPII/en/bdd_modele/bdd_modele_item.asp?id=37) for data on pesticides
+* [OWID](https://ourworldindata.org/) for agricultural production data and fertilizer data
+* [Ahvo et al. 2023](https://doi.org/10.1038/s43016-023-00873-z) for data on yield loss due to input shock
 
 ## Limitations
-* Nuclear fallout is not considered.
+* Nuclear fallout is not considered when calculating casualties.
 * The code requires quite a bit of RAM if the target country is large. If this is an issue, you can use the `degrade` option to degrade the resolution of the LandScan data. The original resolution is 30 arc-seconds, so the individual pixels are somewhat smaller than 1 km² for the regions most susceptible to nuclear war.
-* Targeting only counter-value targets is not realistic: we should eventually consider counter-force targets as well.
 
 ## Codebase orientation
-Simply use `scripts/master.ipynb` to calculate the number of fatalities and destruction of industrial capacity in a nuclear war given an attack with a given number of warheads against a given country. All the code is in `src/main.py`. `results` contains the number of fatalities and loss of industrial capacity for different scenarios.
+1. Simply use `scripts/master.ipynb` to calculate the number of fatalities and destruction of industrial capacity in a nuclear war given an attack with a given number of warheads against a given country. All the code is in `src/main.py`. `results` contains the number of fatalities and loss of industrial capacity for different scenarios.
 
-`scripts/HEMP.ipynb` contains the standalone code to calculate the disablement of industrial capacity due to HEMP. For the scenarios currently considered, EMP effects can be applied separately from the effects of direct destruction of industrial capacity. However, this could change in the future, which would necessitate a more integrated approach. This was avoided at this stage to keep the codebase simple.
+2. `scripts/HEMP.ipynb` contains the standalone code to calculate the disablement of industrial capacity due to HEMP. For the scenarios currently considered, EMP effects can be applied separately from the effects of direct destruction of industrial capacity. However, this could change in the future, which would necessitate a more integrated approach. This was avoided at this stage to keep the codebase simple.
 
-`scripts/industry-loss-per-sector.ipynb` transforms loss of total industrial capacity per country into loss of industrial capacity per sector using the code in `src/sectors.py` and `data/industry-sectors/`.
+3. `scripts/industry-loss-per-sector.ipynb` transforms loss of total industrial capacity per country into loss of industrial capacity per sector using the code in `src/sectors.py` and `data/industry-sectors/`. In addition, it also calculates the loss of agricultural production due to loss of fertilizers and pesticides (using the code in `src/inputshock.py`).
 
 ## Verification
-To verify that the implementation is correct, we can compare to the [results](https://pubs.aip.org/view-large/figure/45882429/37_1_f1.jpg) of Toon et al. Below is a comparison between the number of casualties (in millions) in different scenarios. Note that this includes fatalities and injuries to facilitate the comparison with the results of Toon et al. Everything seems to work ok. Some numbers are significantly higher, but this can be attributed to population increase over the years (India in particular). Note that this verification was performed using the same 15 kt base yield as Toon et al. (the default code uses 18 kt).
+To verify that the population loss implementation is correct, we can compare to the [results](https://pubs.aip.org/view-large/figure/45882429/37_1_f1.jpg) of Toon et al. Below is a comparison between the number of casualties (in millions) in different scenarios. Note that this includes fatalities and injuries to facilitate the comparison with the results of Toon et al. Everything seems to work ok. Some numbers are significantly higher, but this can be attributed to population increase over the years (India in particular). Note that this verification was performed using the same 15 kt base yield as Toon et al. (the default code uses 18 kt).
 
 
 | Scenario | Toon et al. | This code (Toon assumptions) |

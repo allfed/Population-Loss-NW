@@ -1,0 +1,219 @@
+import os
+import numpy as np
+import matplotlib.pyplot as plt
+import pandas as pd
+import rasterio
+from rasterio.mask import mask
+import geopandas as gpd
+from glob import glob
+
+
+def get_latest_food_supply(country):
+    """
+    Get the total number of calories produced for a given country from all agriculture CSV files.
+
+    Args:
+        country (str): Name of the country
+
+    Returns:
+        dict: A dictionary with crop names as keys and their total calories as values
+    """
+    food_supply = {}
+    csv_files = glob("../data/agriculture/*.csv")
+
+    if country == "United States of America":
+        country = "United States"
+
+    for file in csv_files:
+        df = pd.read_csv(file)
+        crop = os.path.splitext(os.path.basename(file))[0]
+        country_data = df[df.Country == country].sort_values("Year", ascending=False)
+
+        if not country_data.empty:
+            for _, row in country_data.iterrows():
+                year = row["Year"]
+                production = row["Production (t)"]
+                calories_supply = row["Food supply (kcal per capita per day)"]
+                grams_supply = row["Food supply (g per capita per day)"]
+                try:
+                    caloric_density = calories_supply / grams_supply
+                except ZeroDivisionError:
+                    caloric_density = np.nan
+                production_calories = production * caloric_density * 1e6
+                if pd.notna(production_calories):
+                    food_supply[crop] = production_calories
+                    break
+                elif (
+                    year < 2010
+                ):  # probably that this country is not producing that crop
+                    break
+
+    return food_supply
+
+
+def calculate_crop_fractions(food_supply):
+    """
+    Calculate the fraction of kcals provided by each crop.
+
+    Args:
+        food_supply (dict): Dictionary with crop names as keys and their total calories as values
+
+    Returns:
+        dict: A dictionary with crop names as keys and their fractions as values
+    """
+    total_supply = sum(food_supply.values())
+    return {crop: supply / total_supply for crop, supply in food_supply.items()}
+
+
+def calculate_yield_loss(country, crop, input, pct, debug=False):
+    """
+    Calculate the yield loss for a given country and crop.
+
+    Args:
+        country (str): Name of the country
+        crop (str): Name of the crop
+        input (str): Name of the input (fertilizer, phosphorus, potassium, nitrogen)
+        pct (float): Percentage loss of input
+        debug (bool): If True, produce a debug map
+
+    Returns:
+        float: Percentage yield loss
+    """
+    if pct > 75:
+        raise ValueError("Percentage loss cannot be greater than 75%")
+
+    if pct == 0:
+        return 0
+
+    world = gpd.read_file("../data/natural-earth/ne_10m_admin_0_countries.shp")
+    country_shape = world[world.ADMIN == country].geometry.values[0]
+
+    # Determine the two closest percentages for interpolation
+    valid_pcts = [0, 25, 50, 75]
+    lower_pct = max([p for p in valid_pcts if p <= pct])
+    upper_pct = min([p for p in valid_pcts if p >= pct])
+
+    def read_shock_file(file_pct):
+        if file_pct == 0:
+            return 0
+        shock_file = f"../data/ahvo/{crop}_{input}_shock{file_pct}.tif"
+        baseline_file = f"../data/ahvo/{crop}_modelled_baseline_yield.tif"
+        with rasterio.open(shock_file) as src, rasterio.open(
+            baseline_file
+        ) as baseline_src:
+            shock_yield, transform = mask(src, [country_shape], crop=True)
+            baseline_yield, _ = mask(baseline_src, [country_shape], crop=True)
+
+            # Get the latitudes of each pixel
+            rows, _ = np.indices(shock_yield.shape[1:])
+            lats = np.degrees(np.arctan2(rows - transform[5], transform[4]))
+            lats = np.expand_dims(lats, axis=0)
+
+            # Mask out areas where baseline yield is zero or NaN
+            valid_mask = (baseline_yield != 0) & (~np.isnan(baseline_yield))
+            shock_yield = shock_yield[valid_mask]
+            baseline_yield = baseline_yield[valid_mask]
+            lats = lats[valid_mask]
+
+            # If there is no baseline yield, return 0
+            if np.sum(baseline_yield) == 0:
+                return 0
+
+            # Calculate weights based on the cosine of the latitude, to account for the area of each pixel
+            weights = np.abs(np.cos(np.radians(lats)))
+
+            # Calculate weighted average, including pixel area and latitude in the weight
+            weighted_shock = np.sum(shock_yield * baseline_yield * weights) / np.sum(
+                baseline_yield * weights
+            )
+            return weighted_shock
+
+    lower_shock = read_shock_file(lower_pct)
+    if lower_pct != upper_pct:
+        upper_shock = read_shock_file(upper_pct)
+        # Linear interpolation
+        shock_avg = lower_shock + (upper_shock - lower_shock) * (pct - lower_pct) / (
+            upper_pct - lower_pct
+        )
+    else:
+        shock_avg = lower_shock
+
+    if shock_avg > 0 or np.isnan(shock_avg):
+        shock_avg = 0
+
+    if debug:
+        fig, ax = plt.subplots(figsize=(15, 10))
+        world.plot(ax=ax, color="lightgrey", edgecolor="black")
+
+        bounds = country_shape.bounds
+        ax.set_xlim(bounds[0], bounds[2])
+        ax.set_ylim(bounds[1], bounds[3])
+
+        # Use the lower percentage for visualization
+        shock_file = f"../data/ahvo/{crop}_{input}_shock{lower_pct}.tif"
+        with rasterio.open(shock_file) as src:
+            shock_yield, _ = mask(src, [country_shape], crop=True)
+
+        # Convert the 2D array to 1D arrays of coordinates and values
+        lon, lat = np.meshgrid(
+            np.linspace(bounds[0], bounds[2], shock_yield.shape[2]),
+            np.linspace(bounds[3], bounds[1], shock_yield.shape[1]),
+        )
+        lon, lat = lon.flatten(), lat.flatten()
+        values = shock_yield[0].flatten()
+
+        # Remove NaN values
+        mask_values = ~np.isnan(values)
+        lon, lat, values = lon[mask_values], lat[mask_values], values[mask_values]
+
+        # Create scatter plot
+        scatter = ax.scatter(
+            lon, lat, c=values, cmap="RdYlBu_r", vmin=-100, vmax=0, s=1, alpha=0.5
+        )
+
+        plt.colorbar(scatter, label="Yield loss (%)")
+        ax.set_title(
+            f"Yield Loss for {crop.capitalize()} in {country} (Interpolated: {pct}%)"
+        )
+        plt.show()
+
+    return shock_avg
+
+
+def calculate_agriculture_loss(country, N_loss, P_loss, K_loss, pesticide_loss):
+    """
+    Calculate the calories-weighted average yield loss for a country across all crops.
+
+    Args:
+        country (str): Name of the country
+        N_loss (float): Percentage loss of nitrogen
+        P_loss (float): Percentage loss of phosphorus
+        K_loss (float): Percentage loss of potassium
+        pesticide_loss (float): Percentage loss of pesticide
+
+    Returns:
+        float: Weighted average yield loss percentage
+    """
+
+    food_supply = get_latest_food_supply(country)
+    crop_fractions = calculate_crop_fractions(food_supply)
+
+    total_weighted_loss = 0
+    for crop, fraction in crop_fractions.items():
+        N_induced_loss = calculate_yield_loss(country, crop, "nitrogen", N_loss)
+        P_induced_loss = calculate_yield_loss(country, crop, "phosphorus", P_loss)
+        K_induced_loss = calculate_yield_loss(country, crop, "potassium", K_loss)
+        pesticide_induced_loss = calculate_yield_loss(
+            country, crop, "pesticide", pesticide_loss
+        )
+
+        # Combine losses multiplicatively
+        yield_loss = 1 - (1 + N_induced_loss / 100) * (1 + P_induced_loss / 100) * (
+            1 + K_induced_loss / 100
+        ) * (1 + pesticide_induced_loss / 100)
+        yield_loss *= -100  # Convert back to percentage
+
+        total_weighted_loss += yield_loss * fraction
+
+    print(f"{country} loses {-total_weighted_loss:.1f}% of its agriculture production")
+    return total_weighted_loss

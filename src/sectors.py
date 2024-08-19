@@ -22,7 +22,7 @@ def calculate_sector_losses(total_industry_loss):
     print("-" * 40)
     for sector, loss in sector_losses.items():
         sector_name = sector.replace("_loss_percent", "").replace("_", " ").capitalize()
-        print(f"{sector_name:<20} {loss:<10.2f}")
+        print(f"{sector_name:<20} {loss:<10.1f}")
     print("-" * 40)
 
     return sector_losses
@@ -49,6 +49,7 @@ def calculate_fertilizer_loss(total_industry_loss, sector_losses):
     for country, loss_percentage in total_industry_loss.items():
         if country in fertilizers["Code"].values:
             country_data = fertilizers[fertilizers["Code"] == country].iloc[0]
+            country_data = country_data.fillna(0)
             total_losses["N_loss"] += country_data["N_percent"] * loss_percentage / 100
             total_losses["P_loss"] += country_data["P_percent"] * loss_percentage / 100
             total_losses["K_loss"] += country_data["K_percent"] * loss_percentage / 100
@@ -79,6 +80,7 @@ def calculate_pesticide_loss(total_industry_loss, sector_losses):
 
     for country, loss_percentage in total_industry_loss.items():
         country_data = pesticide_production[pesticide_production["iso3"] == country]
+        country_data = country_data.fillna(0)
         if not country_data.empty:
             country_production = country_data["percentage_of_world_production"].iloc[0]
             country_loss = country_production * loss_percentage / 100
@@ -343,3 +345,55 @@ def calculate_pesticide_production():
     production = production[production["iso3"] != "IDN"]
 
     return production
+
+
+def load_industry_loss(file_paths, hemp_disable_factor=0.75):
+    """
+    Load and merge industry loss data from multiple CSV files.
+
+    Args:
+        file_paths (list of str): List of file paths to the CSV files containing industry loss data.
+        hemp_disable_factor (float): Fraction of industry within HEMP radius that is disabled.
+
+    Returns:
+        pandas.DataFrame: A DataFrame containing the merged industry loss data with columns:
+            - iso3: Country ISO3 code
+            - industry_destroyed_pct: Percentage of industry destroyed by fire
+            - industry_hempd_pct: Percentage of industry within HEMP radius
+            - industry_loss_pct: Total industry loss percentage, combining destruction and HEMP disablement
+    """
+    # Load the first DataFrame
+    df = pd.read_csv(file_paths[0])
+
+    # Function to merge DataFrames with summation for duplicate columns
+    def merge_with_sum(df1, df2, on="iso3"):
+        # Get the list of common columns (excluding the 'on' column)
+        common_cols = [col for col in df1.columns if col in df2.columns and col != on]
+
+        # Merge the DataFrames
+        merged = df1.merge(df2, on="iso3", how="outer", suffixes=("", "_y"))
+
+        # Sum the values for duplicate columns
+        for col in common_cols:
+            merged[col] = merged[col].fillna(0) + merged[col + "_y"].fillna(0)
+            merged.drop(col + "_y", axis=1, inplace=True)
+
+        return merged
+
+    # Load and merge the remaining DataFrames
+    for file_path in file_paths[1:]:
+        df_next = pd.read_csv(file_path, comment="#")
+        df = merge_with_sum(df, df_next, on="iso3")
+
+    # Fill NaN values with 0
+    df = df.fillna(0)
+
+    df = df[["iso3", "industry_destroyed_pct", "industry_hempd_pct"]]
+    df["industry_loss_pct"] = (
+        df["industry_destroyed_pct"]
+        + (1 - df["industry_destroyed_pct"] / 100)
+        * df["industry_hempd_pct"]
+        * hemp_disable_factor
+    )
+
+    return df

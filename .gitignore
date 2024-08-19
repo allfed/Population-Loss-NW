@@ -166,5 +166,6 @@ cython_debug/
 *landscan-global-2002.tif
 *.osm
 *.pbf
+*.tif
 BACI
 scratchpad.ipynb
