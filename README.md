@@ -6,8 +6,11 @@ Estimate fatalities and loss of industry in the direct aftermath of a nuclear wa
 1. Clone the repo on your local machine.
 2. Create the Conda environment using `conda env create -f environment.yml`.
 3. Activate the new environment using `conda activate Population-Loss-NW`.
-4. (Optional) Download the `.osm` data to the `data/OSM` directory if you want to use the industrial loss option. It can be downloaded [here](https://drive.google.com/drive/folders/13g6QluVBuEs9fm-nOPzuiYNYdXzB1WiK?usp=drive_link). For more countries, additional files can also be generated using the `data/OSM/extract-industrial-country.sh` script.
-5. (Optional) Download the HD LandScan data to the `data/LandScan` directory if you want to use the HD version of the LandScan data. It can be downloaded [here](https://landscan.ornl.gov/).
+4. (Optional) 
+    * Download the `.osm` data to the `data/OSM` directory if you want to use the industrial loss option. It can be downloaded [here](https://drive.google.com/drive/folders/13g6QluVBuEs9fm-nOPzuiYNYdXzB1WiK?usp=drive_link). For more countries, additional files can also be generated using the `data/OSM/extract-industrial-country.sh` script.
+    * Download the HD LandScan data to the `data/LandScan` directory if you want to use the HD version of the LandScan data. It can be downloaded [here](https://landscan.ornl.gov/). 
+    * Download the Ahvo et al. data to the `data/ahvo` directory if you want to use the agricultural loss option; it can be downloaded [here](https://zenodo.org/records/8381197). 
+    * Download the BACI data to the `data/BACI` directory if you want to estimate loss of pesticides; it can be downloaded [here](https://www.cepii.fr/cepii/en/bdd_modele/bdd_modele_item.asp?id=37). 
 
 ## Methodology
 ### Destruction and population loss
@@ -44,11 +47,11 @@ To translate the loss of industrial capacity into loss of agricultural productio
 * The code requires quite a bit of RAM if the target country is large. If this is an issue, you can use the `degrade` option to degrade the resolution of the LandScan data. The original resolution is 30 arc-seconds, so the individual pixels are somewhat smaller than 1 km² for the regions most susceptible to nuclear war.
 
 ## Codebase orientation
-1. Simply use `scripts/master.ipynb` to calculate the number of fatalities and destruction of industrial capacity in a nuclear war given an attack with a given number of warheads against a given country. All the code is in `src/main.py`. `results` contains the number of fatalities and loss of industrial capacity for different scenarios.
+1. Simply use `scripts/nuclear-attack.ipynb` to calculate the number of fatalities and destruction of industrial capacity in a nuclear war given an attack with a given number of warheads against a given country. All the code is in `src/main.py`. `results` contains the number of fatalities and loss of industrial capacity for different scenarios.
 
 2. `scripts/HEMP.ipynb` contains the standalone code to calculate the disablement of industrial capacity due to HEMP. For the scenarios currently considered, EMP effects can be applied separately from the effects of direct destruction of industrial capacity. However, this could change in the future, which would necessitate a more integrated approach. This was avoided at this stage to keep the codebase simple.
 
-3. `scripts/industry-loss-per-sector.ipynb` transforms loss of total industrial capacity per country into loss of industrial capacity per sector using the code in `src/sectors.py` and `data/industry-sectors/`. In addition, it also calculates the loss of agricultural production due to loss of fertilizers and pesticides (using the code in `src/inputshock.py`).
+3. `scripts/impact-of-loss-of-industry.ipynb` transforms loss of total industrial capacity per country into loss of industrial capacity per sector using the code in `src/sectors.py` and `data/industry-sectors/`. In addition, it also calculates the loss of agricultural production due to loss of fertilizers and pesticides (using the code in `src/inputshock.py`).
 
 ## Verification
 To verify that the population loss implementation is correct, we can compare to the [results](https://pubs.aip.org/view-large/figure/45882429/37_1_f1.jpg) of Toon et al. Below is a comparison between the number of casualties (in millions) in different scenarios. Note that this includes fatalities and injuries to facilitate the comparison with the results of Toon et al. Everything seems to work ok. Some numbers are significantly higher, but this can be attributed to population increase over the years (India in particular). Note that this verification was performed using the same 15 kt base yield as Toon et al. (the default code uses 18 kt).
