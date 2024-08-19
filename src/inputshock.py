@@ -21,9 +21,6 @@ def get_latest_food_supply(country):
     food_supply = {}
     csv_files = glob("../data/agriculture/*.csv")
 
-    if country == "United States of America":
-        country = "United States"
-
     for file in csv_files:
         df = pd.read_csv(file)
         crop = os.path.splitext(os.path.basename(file))[0]
@@ -84,6 +81,23 @@ def calculate_yield_loss(country, crop, input, pct, debug=False):
 
     if pct == 0:
         return 0
+
+    if country == "United States":
+        country = "United States of America"
+    elif country == "Cape Verde":
+        country = "Cabo Verde"
+    elif country == "Congo":
+        country = "Republic of the Congo"
+    elif country == "Democratic Republic of Congo":
+        country = "Democratic Republic of the Congo"
+    elif country == "Eswatini":
+        country = "eSwatini"
+    elif country == "Cote d'Ivoire":
+        country = "Ivory Coast"
+    elif country == "Serbia":
+        country = "Republic of Serbia"
+    elif country == "Tanzania":
+        country = "United Republic of Tanzania"
 
     world = gpd.read_file("../data/natural-earth/ne_10m_admin_0_countries.shp")
     country_shape = world[world.ADMIN == country].geometry.values[0]
@@ -217,3 +231,72 @@ def calculate_agriculture_loss(country, N_loss, P_loss, K_loss, pesticide_loss):
 
     print(f"{country} loses {-total_weighted_loss:.1f}% of its agriculture production")
     return total_weighted_loss
+
+
+def calculate_agriculture_loss_for_all_countries(
+    N_loss, P_loss, K_loss, pesticide_loss
+):
+    """
+    Calculate the agriculture loss for all countries and save the results to a CSV file.
+
+    Args:
+        N_loss (float): Percentage loss of nitrogen
+        P_loss (float): Percentage loss of phosphorus
+        K_loss (float): Percentage loss of potassium
+        pesticide_loss (float): Percentage loss of pesticide
+
+    Returns:
+        None
+    """
+    # Build a list of all country names
+    df = pd.read_csv("../data/agriculture/wheat.csv")
+    results = []
+
+    # Read already calculated results
+    if os.path.exists("../results/yield_loss_results.csv"):
+        existing_results_df = pd.read_csv("../results/yield_loss_results.csv")
+        existing_countries = set(existing_results_df["country"])
+    else:
+        existing_countries = set()
+
+    for country in df.Country.unique():
+        if (
+            country not in existing_countries
+            and "FAO" not in country
+            and "World" not in country
+            and "countries" not in country
+            and "former" not in country
+            and "USSR" not in country
+            and "(" not in country
+            and "Africa" not in country
+            and "Asia" not in country
+            and "Europe" not in country
+            and "Oceania" not in country
+            and "South America" not in country
+            and "North America" not in country
+            and "Czechoslovakia" not in country
+            and "Yugoslavia" not in country
+            and "Serbia and Montenegro" not in country
+            and "Polynesia" not in country
+            and "Bahamas" not in country
+            and "Hong Kong" not in country
+            and "Macao" not in country
+            and "Melanesia" not in country
+            and "Netherlands Antilles" not in country
+            and "Sao Tome and Principe" not in country
+        ):
+            ans = calculate_agriculture_loss(
+                country, N_loss, P_loss, K_loss, pesticide_loss
+            )
+            results.append({"country": country, "yield_loss_pct": ans})
+
+            # Append the current result to CSV as a backup
+            results_df = pd.DataFrame([{"country": country, "yield_loss_pct": ans}])
+            results_df.to_csv(
+                "../results/yield_loss_results.csv",
+                mode="a",
+                header=not os.path.exists("../results/yield_loss_results.csv"),
+                index=False,
+            )
+
+    print("Results saved to ../results/yield_loss_results.csv")

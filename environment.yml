@@ -73,8 +73,10 @@ dependencies:
   - freetype=2.12.1=h267a509_2
   - freexl=2.0.0=h743c826_0
   - gdal=3.9.0=py312h86af8fa_7
+  - geographiclib=2.0=pyhd8ed1ab_0
   - geopandas=0.14.4=pyhd8ed1ab_0
   - geopandas-base=0.14.4=pyha770c72_0
+  - geopy=2.4.1=pyhd8ed1ab_1
   - geos=3.12.1=h59595ed_0
   - geotiff=1.7.3=hf7fa9e8_1
   - gettext=0.22.5=h59595ed_2

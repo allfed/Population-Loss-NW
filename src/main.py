@@ -1,5 +1,6 @@
 import csv
 import json
+import math
 import multiprocessing as mp
 import os
 import re
@@ -12,10 +13,10 @@ import numpy as np
 import osmium
 import pandas as pd
 import pycountry
-import pyproj
 import rasterio
 
 from branca.colormap import LinearColormap
+from geopy import distance
 from mpl_toolkits.basemap import Basemap
 from matplotlib.colors import ListedColormap
 from scipy.ndimage import convolve
@@ -468,7 +469,7 @@ class Country:
                 lat, lon, yield_kt, include_injuries=include_injuries
             )
         return
-    
+
     def apply_OPEN_RISOP_nuclear_war_plan(self, yield_kt, include_injuries=False):
         """
         Attack all locations in the OPEN RISOP database. Only valid for the US.
@@ -600,7 +601,7 @@ class Country:
                 ) ** 2 / delta_lat_kill**2 <= 1:
                     # kill population
                     population_in_pixel = self.data[lat_idx_kill, lon_idx_kill]
-                    distance_from_groundzero = haversine_distance(
+                    distance_from_groundzero = calculate_distance_km(
                         lat_pixel, lon_pixel, lat_groundzero, lon_groundzero
                     )
                     fatality_rate = get_fatality_rate(
@@ -616,7 +617,7 @@ class Country:
                     lat_pixel - lat_groundzero
                 ) ** 2 / delta_lat_burn**2 <= 1:
                     # destroy infrastructure
-                    distance_from_groundzero = haversine_distance(
+                    distance_from_groundzero = calculate_distance_km(
                         lat_pixel, lon_pixel, lat_groundzero, lon_groundzero
                     )
                     if distance_from_groundzero <= max_radius_burn:
@@ -651,7 +652,7 @@ class Country:
 
                     # Check for destroyed custom locations
                     for _, row in self.custom_locations.iterrows():
-                        custom_location_distance = haversine_distance(
+                        custom_location_distance = calculate_distance_km(
                             lat_groundzero, lon_groundzero, row.latitude, row.longitude
                         )
                         if custom_location_distance <= max_radius_burn:
@@ -843,19 +844,18 @@ class Country:
 
         return m
 
-
-def haversine_distance(lat1, lon1, lat2, lon2):
-    """Calculates the Haversine distance between two points in km."""
-
-    R = 6371  # Earth's radius in kilometers
-    dlat = np.radians(lat2 - lat1)
-    dlon = np.radians(lon2 - lon1)
-    a = np.sin(dlat / 2) * np.sin(dlat / 2) + np.cos(np.radians(lat1)) * np.cos(
-        np.radians(lat2)
-    ) * np.sin(dlon / 2) * np.sin(dlon / 2)
-    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
-    distance = R * c
-    return distance
+def calculate_distance_km(lat1, lon1, lat2, lon2):
+    """
+    Calculate the great circle distance between two points 
+    on the earth (specified in decimal degrees)
+    """
+    point1 = (lat1, lon1)
+    point2 = (lat2, lon2)
+    
+    # Calculate the distance
+    dist = distance.distance(point1, point2).kilometers
+    
+    return dist
 
 
 def get_fatality_rate(distance_from_groundzero, yield_kt, include_injuries=False):
@@ -1031,7 +1031,7 @@ def apply_emp_damage(
     for idx, row in industry.iterrows():
         # Check if the industrial area is within any EMP radius
         for (lat_gz, lon_gz), radius_km in zip(ground_zeros, radius_kms):
-            distance = haversine_distance(
+            distance = calculate_distance_km(
                 lat_gz,
                 lon_gz,
                 row.geometry.centroid.y,
@@ -1043,6 +1043,20 @@ def apply_emp_damage(
                 break  # No need to check other EMPs if already disabled
 
     return disabled_industrial_areas_idx
+
+
+def generate_circle_points(center_lat, center_lon, radius_km, num_points=100):
+    points = []
+    for i in range(num_points):
+        angle = math.radians(i * (360 / num_points))
+        point = distance.distance(kilometers=radius_km).destination(
+            (center_lat, center_lon), bearing=math.degrees(angle)
+        )
+        lat, lon = point.latitude, point.longitude
+        # if lon < 0:
+        #     lon += 360
+        points.append((lat, lon))
+    return points
 
 
 def plot_emp_damage(
@@ -1076,15 +1090,14 @@ def plot_emp_damage(
             icon=folium.Icon(color="red", icon="x"),
         ).add_to(m)
 
-        # Add a circle for the EMP radius
-        folium.Circle(
-            radius=radius_km * 1000,  # Convert km to meters
-            location=[lat_groundzero, lon_groundzero],
-            popup=f"EMP Radius: {radius_km} km",
+        circle_points = generate_circle_points(lat_groundzero, lon_groundzero, radius_km)
+        folium.Polygon(
+            locations=circle_points,
             color="red",
             fill=True,
             fillColor="red",
             fillOpacity=0.1,
+            popup=f"EMP Radius: {radius_km} km",
         ).add_to(m)
 
     # Plot industrial areas
