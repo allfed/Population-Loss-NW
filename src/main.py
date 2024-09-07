@@ -844,17 +844,18 @@ class Country:
 
         return m
 
+
 def calculate_distance_km(lat1, lon1, lat2, lon2):
     """
-    Calculate the great circle distance between two points 
+    Calculate the great circle distance between two points
     on the earth (specified in decimal degrees)
     """
     point1 = (lat1, lon1)
     point2 = (lat2, lon2)
-    
+
     # Calculate the distance
     dist = distance.distance(point1, point2).kilometers
-    
+
     return dist
 
 
@@ -1090,7 +1091,9 @@ def plot_emp_damage(
             icon=folium.Icon(color="red", icon="x"),
         ).add_to(m)
 
-        circle_points = generate_circle_points(lat_groundzero, lon_groundzero, radius_km)
+        circle_points = generate_circle_points(
+            lat_groundzero, lon_groundzero, radius_km
+        )
         folium.Polygon(
             locations=circle_points,
             color="red",
@@ -1180,3 +1183,106 @@ def get_OPEN_RISOP_nuclear_war_plan():
         targets[name] = (lat, lon)
 
     return targets
+
+
+def build_scaling_curve(
+    country_name, yield_kt, numbers_of_weapons, non_overlapping=True
+):
+    """
+    Build a scaling curve for the given country by simulating nuclear attacks with varying numbers of weapons.
+
+    Args:
+        country_name (str): The name of the country to be attacked.
+        yield_kt (float): The yield of each warhead in kilotons.
+        numbers_of_weapons (list): A list of integers representing the number of weapons to be used in each simulation.
+        non_overlapping (bool): If True, the weapons will be detonated in non-overlapping fashion.
+
+    Returns:
+        None. The results are saved to a CSV file in the ../results/ directory.
+    """
+    results = []
+    output_file = (
+        f"../results/{country_name.lower().replace(' ', '_')}_scaling_results.csv"
+    )
+    for number_of_weapons in numbers_of_weapons:
+        print(f"Number of weapons: {number_of_weapons}")
+        arsenal = number_of_weapons * [yield_kt]
+        country = Country(
+            country_name, landscan_year=2022, degrade=False, degrade_factor=1
+        )
+        country.attack_max_fatality(
+            arsenal, include_injuries=False, non_overlapping=non_overlapping
+        )
+        country.print_diagnostic_info()
+
+        fatalities = country.get_total_fatalities()
+        industry_destroyed_pct = country.get_total_destroyed_industrial_area()
+        soot_emissions = country.soot_Tg
+        destroyed_custom_locations = country.get_number_destroyed_custom_locations()
+
+        results.append(
+            {
+                "country": country_name,
+                "number_of_weapons": number_of_weapons,
+                "yield_kt": yield_kt,
+                "fatalities": fatalities,
+                "industry_destroyed_pct": industry_destroyed_pct,
+                "soot_emissions": soot_emissions,
+                "non_overlapping": non_overlapping,
+            }
+        )
+
+    results_df = pd.DataFrame(results)
+    
+    if os.path.exists(output_file):
+        existing_df = pd.read_csv(output_file)
+        results_df = pd.concat([existing_df, results_df], ignore_index=True)
+    
+    results_df.to_csv(output_file, index=False)
+
+
+def plot_scaling_results(yield_kt=100):
+    """
+    Plot the scaling results of all ../results/*_scaling_results.csv files.
+    One curve per country (that is, per file).
+
+    Args:
+        yield_kt (float): The yield of each warhead in kilotons. Default is 100.
+
+    Returns:
+        None. The plots are displayed.
+    """
+    results_dir = "../results"
+    files = [f for f in os.listdir(results_dir) if f.endswith("_scaling_results.csv")]
+
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8), sharex=True)
+
+    for file in files:
+        file_path = os.path.join(results_dir, file)
+        df = pd.read_csv(file_path)
+        df_filtered = df[df["yield_kt"] == yield_kt]
+
+        for non_overlapping in [True, False]:
+            df_filtered_case = df_filtered[df_filtered["non_overlapping"] == non_overlapping]
+            if not df_filtered_case.empty:
+                country_name = df_filtered_case["country"].iloc[0]
+                label = f"{country_name} - {'Non-overlapping' if non_overlapping else 'Overlapping'}"
+                ax1.plot(
+                    df_filtered_case["number_of_weapons"],
+                    df_filtered_case["fatalities"],
+                    label=label,
+                )
+                ax2.plot(
+                    df_filtered_case["number_of_weapons"],
+                    df_filtered_case["industry_destroyed_pct"] * 100,
+                    label=label,
+                )
+
+    ax1.set_ylabel("Fatalities")
+    ax1.legend()
+
+    ax2.set_xlabel(f"Number of {yield_kt}-kt weapons")
+    ax2.set_ylabel("% industry destroyed")
+
+    plt.tight_layout()
+    plt.show()
