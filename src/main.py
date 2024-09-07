@@ -1186,7 +1186,11 @@ def get_OPEN_RISOP_nuclear_war_plan():
 
 
 def build_scaling_curve(
-    country_name, yield_kt, numbers_of_weapons, non_overlapping=True, degrade_factor=1,
+    country_name,
+    yield_kt,
+    numbers_of_weapons,
+    non_overlapping=True,
+    degrade_factor=1,
 ):
     """
     Build a scaling curve for the given country by simulating nuclear attacks with varying numbers of weapons.
@@ -1201,16 +1205,26 @@ def build_scaling_curve(
     Returns:
         None. The results are saved to a CSV file in the ../results/ directory.
     """
-    results = []
-    output_file = (
-        f"../results/{country_name.lower().replace(' ', '_')}_scaling_results.csv"
-    )
+    output_file = f"../results/{country_name.lower().replace(' ', '_')}_scaling_results.csv"
     degrade = degrade_factor > 1
+
+    # Create or load existing CSV file
+    if os.path.exists(output_file):
+        results_df = pd.read_csv(output_file)
+    else:
+        results_df = pd.DataFrame(columns=[
+            "country", "number_of_weapons", "yield_kt", "fatalities",
+            "industry_destroyed_pct", "soot_emissions", "non_overlapping"
+        ])
+
     for number_of_weapons in numbers_of_weapons:
         print(f"Number of weapons: {number_of_weapons}")
         arsenal = number_of_weapons * [yield_kt]
         country = Country(
-            country_name, landscan_year=2022, degrade=degrade, degrade_factor=degrade_factor
+            country_name,
+            landscan_year=2022,
+            degrade=degrade,
+            degrade_factor=degrade_factor,
         )
         country.attack_max_fatality(
             arsenal, include_injuries=False, non_overlapping=non_overlapping
@@ -1222,25 +1236,20 @@ def build_scaling_curve(
         soot_emissions = country.soot_Tg
         destroyed_custom_locations = country.get_number_destroyed_custom_locations()
 
-        results.append(
-            {
-                "country": country_name,
-                "number_of_weapons": number_of_weapons,
-                "yield_kt": yield_kt,
-                "fatalities": fatalities,
-                "industry_destroyed_pct": industry_destroyed_pct,
-                "soot_emissions": soot_emissions,
-                "non_overlapping": non_overlapping,
-            }
-        )
+        new_row = pd.DataFrame({
+            "country": [country_name],
+            "number_of_weapons": [number_of_weapons],
+            "yield_kt": [yield_kt],
+            "fatalities": [fatalities],
+            "industry_destroyed_pct": [industry_destroyed_pct],
+            "soot_emissions": [soot_emissions],
+            "non_overlapping": [non_overlapping]
+        })
 
-    results_df = pd.DataFrame(results)
-
-    if os.path.exists(output_file):
-        existing_df = pd.read_csv(output_file)
-        results_df = pd.concat([existing_df, results_df], ignore_index=True)
-
-    results_df.to_csv(output_file, index=False)
+        results_df = pd.concat([results_df, new_row], ignore_index=True)
+        
+        # Save the updated results after each iteration
+        results_df.to_csv(output_file, index=False)
 
 
 def plot_scaling_results(yield_kt=100):
