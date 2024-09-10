@@ -388,7 +388,7 @@ def load_industry_loss(file_paths, hemp_disable_factor=0.75):
     # Fill NaN values with 0
     df = df.fillna(0)
 
-    df = df[["iso3", "industry_destroyed_pct", "industry_hempd_pct"]]
+    # df = df[["iso3", "industry_destroyed_pct", "industry_hempd_pct"]]
     df["industry_loss_pct"] = (
         df["industry_destroyed_pct"]
         + (1 - df["industry_destroyed_pct"] / 100)
@@ -397,3 +397,15 @@ def load_industry_loss(file_paths, hemp_disable_factor=0.75):
     )
 
     return df
+
+
+def make_file_for_integrated_model(
+    df, output_file="../results/for_integrated_model/default.csv"
+):
+    """
+    Make a file for the integrated model containing the population, industry loss, and yield loss.
+    """
+    df_yield = pd.read_csv("../results/yield_loss_results.csv")
+    df_yield = df_yield.merge(df, on=["iso3"])
+    df_yield["yield_loss_pct"] = df_yield["yield_loss_pct"] * -1
+    df_yield.to_csv(output_file, index=False)
