@@ -8,6 +8,7 @@ import warnings
 
 import folium
 import geopandas as gpd
+import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import numpy as np
 import osmium
@@ -18,7 +19,6 @@ import rasterio
 from branca.colormap import LinearColormap
 from geopy import distance
 from mpl_toolkits.basemap import Basemap
-from matplotlib.colors import ListedColormap
 from scipy.ndimage import convolve
 from shapely.geometry import box, Polygon
 from skimage.measure import block_reduce
@@ -365,7 +365,7 @@ class Country:
             non_overlapping (bool): if True, prohibit overlapping targets as Toon et al.
         """
         self.include_injuries = include_injuries
-        if not all(x == arsenal[0] for x in arsenal):
+        if not all(x == arsenal[0] for x in arsenal) and non_overlapping:
             warnings.warn(
                 "Arsenal contains different yield values. The current non-overlapping target allocation algorithm will not handle this correctly."
             )
@@ -787,7 +787,7 @@ class Country:
 
     def plot(
         self,
-        show_hit_regions=False,
+        show_burn_regions=False,
         show_population_density=False,
         show_industrial_areas=False,
         show_custom_locations=False,
@@ -796,7 +796,7 @@ class Country:
         Make an interactive map
 
         Args:
-            show_hit_regions (bool): if True, show the hit regions
+            show_burn_regions (bool): if True, show the burn regions
             show_population_density (bool): if True, show the population density
             show_industrial_areas (bool): if True, show the industrial areas
             show_custom_locations (bool): if True, show the custom locations from data/custom-locations/*.csv
@@ -824,7 +824,7 @@ class Country:
             ).add_to(m)
 
         # Show hit regions
-        if show_hit_regions:
+        if show_burn_regions:
             # Reproject coordinates from PlateCarre to Mercator
 
             bounds = [
@@ -832,27 +832,41 @@ class Country:
                 [np.max(self.lats), np.max(self.lons)],
             ]
 
-            color_map = LinearColormap(
-                colors=[(0, 0, 0, 0), (255, 0, 0, 20), (255, 0, 0, 40)],
-                vmin=0,
-                vmax=2,
-            )
+            # Create a custom colormap
+            colors = [(0, 0, 0, 0), (1, 0, 0, 1)]  # Transparent and solid red
+            n_bins = 2  # We only need 2 bins: 0 and 1
+            cmap = mcolors.LinearSegmentedColormap.from_list("custom", colors, N=n_bins)
+            
+            # Create a binary mask for burn regions
+            burn_mask = (self.hit == 2).astype(float)
+
+            # Apply colormap to data
+            colored_data = cmap(burn_mask)
+
+            bounds = [
+                [np.min(self.lats), np.min(self.lons)],
+                [np.max(self.lats), np.max(self.lons)],
+            ]
 
             folium.raster_layers.ImageOverlay(
-                image=self.hit,
+                image=colored_data,
                 bounds=bounds,
-                colormap=color_map,
-                opacity=0.5,
+                opacity=1,
                 mercator_project=True,
             ).add_to(m)
 
         # plot targets
-        if not show_hit_regions:
+        if not show_burn_regions:
             for i, target in enumerate(self.target_list):
-                folium.Marker(
+                folium.CircleMarker(
                     [float(target[0]), float(target[1])],
+                    radius=2*np.sqrt(self.kilotonne[i]/100),
+                    color="red",
+                    fill=True,
+                    fill_color="red",
+                    fill_opacity=0.5,
+                    opacity=0.5,
                     popup=f"Hit with {self.kilotonne[i]} kt",
-                    icon=folium.Icon(color="red", icon="radiation"),
                 ).add_to(m)
 
         # Plot industrial areas
@@ -969,9 +983,10 @@ def run_many_countries(
     # Open CSV file for writing results
     with open("../results/scenario_results.csv", "w", newline="") as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow(
-            ["iso3", "population_loss", "industry_destroyed_pct"]
-        )  # Write header
+        writer.writerow([
+            "iso3", "population_loss", "population_loss_pct", "industry_destroyed_pct",
+            "soot_emissions_Tg", "degrade_factor", "targeting_policy", "include_injuries"
+        ])  # Write header
 
         for country_name, arsenal in scenario.items():
             country = Country(
@@ -993,13 +1008,19 @@ def run_many_countries(
                     arsenal, include_injuries=include_injuries
                 )
             fatalities = country.get_total_fatalities()
-            print(f"{country_name}, fatalities: {fatalities}")
+            population_loss_pct = 100 * fatalities / country.population_intact.sum()
+            print(f"{country_name}, fatalities: {fatalities} ({population_loss_pct:.1f}%)")
 
             industry_destroyed_pct = country.get_total_destroyed_industrial_area()
             print(f"{country_name}, industry destroyed: {100*industry_destroyed_pct:.2f}%")
 
+            print(f"{country_name}, soot emissions: {country.soot_Tg:.1f} Tg")
+
             # Write results for this country immediately to CSV
-            writer.writerow([country.iso3, fatalities, industry_destroyed_pct])
+            writer.writerow([
+                country.iso3, fatalities, population_loss_pct, industry_destroyed_pct,
+                country.soot_Tg, degrade_factor, targeting_policy, include_injuries
+            ])
 
 
 class IndustrialAreaHandler(osmium.SimpleHandler):
