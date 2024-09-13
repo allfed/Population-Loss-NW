@@ -364,6 +364,7 @@ class Country:
             arsenal (list): a list of the yield of the warheads in kt
             non_overlapping (bool): if True, prohibit overlapping targets as Toon et al.
         """
+        arsenal = sorted(arsenal, reverse=True)
         self.include_injuries = include_injuries
         if not all(x == arsenal[0] for x in arsenal) and non_overlapping:
             warnings.warn(
@@ -794,7 +795,6 @@ class Country:
     ):
         """
         Make an interactive map
-
         Args:
             show_burn_regions (bool): if True, show the burn regions
             show_population_density (bool): if True, show the population density
@@ -851,7 +851,7 @@ class Country:
             folium.raster_layers.ImageOverlay(
                 image=colored_data,
                 bounds=bounds,
-                opacity=1,
+                opacity=0.5,
                 mercator_project=True,
             ).add_to(m)
 
