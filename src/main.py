@@ -1480,7 +1480,6 @@ def plot_static_target_map(target_list, yields, region=None):
     m.drawcoastlines(linewidth=0.5)
     m.drawcountries(linewidth=0.5)
     m.fillcontinents(color="lightgrey", lake_color="white")
-    m.drawmapboundary(fill_color="white")
     m.drawstates()
 
     # Plot targets
@@ -1502,4 +1501,6 @@ def plot_static_target_map(target_list, yields, region=None):
         linewidth=0.5,
     )
 
+    m.drawmapboundary(fill_color="white", linewidth=0.4, color='black')
+    plt.savefig("../images/newmap.png", bbox_inches="tight")
     plt.show()
