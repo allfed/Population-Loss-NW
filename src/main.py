@@ -956,7 +956,7 @@ def run_many_countries(
     include_injuries=False,
 ):
     """
-    Run the model for multiple countries and return the results
+    Run the model for multiple countries and write results to CSV
 
     Args:
         scenario (dict): a dictionary with the country names as keys and the arsenal as values
@@ -965,42 +965,41 @@ def run_many_countries(
         targeting_policy (str): the targeting policy to use, either "max_fatality_non_overlapping", "max_fatality", or "random_non_overlapping"
         include_injuries (bool): if True, include fatalities and injuries
     """
-    results = []
 
-    for country_name, arsenal in scenario.items():
-        country = Country(
-            country_name,
-            landscan_year=2022,
-            degrade=degrade,
-            degrade_factor=degrade_factor,
-        )
-        if targeting_policy == "max_fatality_non_overlapping":
-            country.attack_max_fatality(
-                arsenal, include_injuries=include_injuries, non_overlapping=True
-            )
-        elif targeting_policy == "max_fatality":
-            country.attack_max_fatality(
-                arsenal, include_injuries=include_injuries, non_overlapping=False
-            )
-        elif targeting_policy == "random_non_overlapping":
-            country.attack_random_non_overlapping(
-                arsenal, include_injuries=include_injuries
-            )
-        fatalities = country.get_total_fatalities()
-        print(f"{country_name}, fatalities: {fatalities}")
-
-        industry_destroyed_pct = country.get_total_destroyed_industrial_area()
-        print(f"{country_name}, industry destroyed: {100*industry_destroyed_pct:.2f}%")
-
-        results.append([country.iso3, fatalities, industry_destroyed_pct])
-
-    # Save results to CSV
-    with open("../results/nuclear_war_fatalities.csv", "w", newline="") as csvfile:
+    # Open CSV file for writing results
+    with open("../results/scenario_results.csv", "w", newline="") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(
             ["iso3", "population_loss", "industry_destroyed_pct"]
         )  # Write header
-        writer.writerows(results)
+
+        for country_name, arsenal in scenario.items():
+            country = Country(
+                country_name,
+                landscan_year=2022,
+                degrade=degrade,
+                degrade_factor=degrade_factor,
+            )
+            if targeting_policy == "max_fatality_non_overlapping":
+                country.attack_max_fatality(
+                    arsenal, include_injuries=include_injuries, non_overlapping=True
+                )
+            elif targeting_policy == "max_fatality":
+                country.attack_max_fatality(
+                    arsenal, include_injuries=include_injuries, non_overlapping=False
+                )
+            elif targeting_policy == "random_non_overlapping":
+                country.attack_random_non_overlapping(
+                    arsenal, include_injuries=include_injuries
+                )
+            fatalities = country.get_total_fatalities()
+            print(f"{country_name}, fatalities: {fatalities}")
+
+            industry_destroyed_pct = country.get_total_destroyed_industrial_area()
+            print(f"{country_name}, industry destroyed: {100*industry_destroyed_pct:.2f}%")
+
+            # Write results for this country immediately to CSV
+            writer.writerow([country.iso3, fatalities, industry_destroyed_pct])
 
 
 class IndustrialAreaHandler(osmium.SimpleHandler):
