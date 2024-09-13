@@ -141,6 +141,8 @@ class Country:
         use_HD=False,
         subregion=None,
         industry=True,
+        burn_radius_prescription="default",
+        kill_radius_prescription="default",
     ):
         """
         Load the population data for the specified country
@@ -154,6 +156,8 @@ class Country:
             subregion (list): the bounds of the subregion to extract from the LandScan data in the format
              [min_lon, max_lon, min_lat, max_lat]. This is optional and if not provided, the entire country is used.
             industry (bool): if True, then load industrial zones
+            burn_radius_prescription (str): the method to calculate the burn radius ("Toon", "default", or "overpressure")
+            kill_radius_prescription (str): the method to calculate the kill radius ("Toon", "default", or "overpressure")
         """
         self.country_name = country_name
         # Load landscan data
@@ -163,6 +167,9 @@ class Country:
         else:
             country_HD = None
         landscan = LandScan(landscan_year, degrade, degrade_factor, use_HD, country_HD)
+
+        self.burn_radius_prescription = burn_radius_prescription
+        self.kill_radius_prescription = kill_radius_prescription
 
         self.approximate_resolution = 1 * self.degrade_factor  # km
         if use_HD:
@@ -318,12 +325,19 @@ class Country:
 
         Args:
             yield_kt (float): The yield of the warhead in kt.
+            kill_radius_prescription (str): The method to calculate the kill radius. Options are:
+                - "Toon": Uses the formula from Toon et al. 2008, which assumes sqrt
+                - "default": Uses a scaling based on a model described in burn-radius-scaling.ipynb
+                - "overpressure": Uses a scaling based on the overpressure model
 
         Returns:
             None. Sets self.data_averaged with the convolved population data.
         """
-        radius = int(1.15 * np.sqrt(yield_kt / 18) * 3 / self.approximate_resolution)
-        sigma = 1.15 * np.sqrt(yield_kt / 18) / self.approximate_resolution
+        scaling_factor = self.calculate_kill_radius_scaling_factor(
+            self.kill_radius_prescription, yield_kt
+        )
+        radius = int(1.15 * scaling_factor * 3 / self.approximate_resolution)
+        sigma = 1.15 * scaling_factor / self.approximate_resolution
         x = np.arange(-radius, radius + 1)
         y = np.arange(-radius, radius + 1)
         x, y = np.meshgrid(x, y)
@@ -523,13 +537,62 @@ class Country:
         self.target_list.append((actual_lat, actual_lon))
         self.kilotonne.append(yield_kt)
 
+    @staticmethod
+    def calculate_max_radius_burn(burn_radius_prescription, yield_kt):
+        """
+        Calculate the maximum burn radius based on the given prescription and yield.
+
+        Args:
+            burn_radius_prescription (str): The method to calculate the burn radius.
+            yield_kt (float): The yield of the warhead in kt.
+
+        Returns:
+            float: The calculated maximum burn radius.
+        """
+        if burn_radius_prescription == "Toon":
+            # From Toon et al. 2008, linear scaling of burned area with yield, with 13 km² for Hiroshima
+            return 2.03 * (yield_kt / 15) ** 0.50
+        elif burn_radius_prescription == "default":
+            # Most realistic model, see burn-radius-scaling.ipynb
+            return 0.75094351 * yield_kt**0.38287688
+        elif burn_radius_prescription == "overpressure":
+            # Scales from average of Hiroshima and Nagasaki (13km² and 6.7km², 15kt and 21kt),
+            # also assumes that it scales like D**(1/3)
+            return 1.77 * (yield_kt / 18) ** (1 / 3)
+        else:
+            raise ValueError(
+                f"Unknown burn radius prescription: {burn_radius_prescription}"
+            )
+
+    @staticmethod
+    def calculate_kill_radius_scaling_factor(scaling_prescription, yield_kt):
+        """
+        Calculate the scaling factor for the kill radius. This is only
+        really used to enforce the non-overlapping targets condition, the actual fatalities are
+        calculated with get_fatality_rate.
+
+        Args:
+            scaling_prescription (str): The method to calculate the kill radius.
+            yield_kt (float): The yield of the warhead in kt.
+
+        Returns:
+            float: The calculated scaling factor.
+        """
+        if scaling_prescription == "Toon":
+            return np.sqrt(yield_kt / 15)
+        elif scaling_prescription == "default":
+            return (yield_kt / 18) ** 0.38287688
+        elif scaling_prescription == "overpressure":
+            return (yield_kt / 18) ** 0.33333333
+        else:
+            raise ValueError(f"Unknown scaling prescription: {scaling_prescription}")
+
     def apply_destruction(
         self,
         lat_groundzero,
         lon_groundzero,
         yield_kt,
         non_overlapping=True,
-        burn_radius_prescription="default",
     ):
         """
         Removing the population from the specified location and the max_radius_kill km around it and
@@ -540,30 +603,14 @@ class Country:
             lon (float): the longitude of the target location
             yield_kt (float): the yield of the warhead in kt
             non_overlapping (bool): if True, prohibit overlapping targets as Toon et al.
-            burn_radius_prescription (str): The method to calculate the burn radius. Options are:
-                - "default": Uses a scaling based on the average of Hiroshima and Nagasaki data,
-                  with an exponent of 0.47 derived from atmospheric transmission considerations.
-                - "Toon": Uses the formula from Toon et al. 2008, which assumes linear scaling
-                  of burned area with yield.
-                - "overpressure": Uses a scaling based on the average of Hiroshima and Nagasaki data,
-                  with an exponent of 1/3 based on overpressure considerations.
         """
         # (1) Apply population loss and infrastructure destruction
-        max_radius_kill = np.sqrt(yield_kt / 18) * 3  # From Toon et al. 2008
-
-        if burn_radius_prescription == "Toon":
-            max_radius_burn = (
-                2.03 * (yield_kt / 15) ** 0.50
-            )  # From Toon et al. 2008, linear scaling of burned area with yield, with 13 km² for Hiroshima
-        elif burn_radius_prescription == "default":
-            max_radius_burn = (
-                1.77 * (yield_kt / 18) ** 0.47
-            )  # scales from average of Hiroshima and Nagasaki (13km² and 6.7km², 15kt and 21kt), also
-            # assumes that it scales like D**0.47 based on burn-radius-scaling.ipynb
-        elif burn_radius_prescription == "overpressure":
-            max_radius_burn = 1.77 * (yield_kt / 18) ** (1 / 3)
-            # scales from average of Hiroshima and Nagasaki (13km² and 6.7km², 15kt and 21kt), also
-            # assumes that it scales like D**(1/3) based on discussion in burn-radius-scaling.ipynb
+        max_radius_kill = 3 * self.calculate_kill_radius_scaling_factor(
+            self.kill_radius_prescription, yield_kt
+        )
+        max_radius_burn = self.calculate_max_radius_burn(
+            self.burn_radius_prescription, yield_kt
+        )
 
         delta_lon_kill = max_radius_kill / 6371.0 / np.cos(np.radians(lat_groundzero))
         delta_lat_kill = max_radius_kill / 6371.0
@@ -605,7 +652,10 @@ class Country:
                         lat_pixel, lon_pixel, lat_groundzero, lon_groundzero
                     )
                     fatality_rate = get_fatality_rate(
-                        distance_from_groundzero, yield_kt, self.include_injuries
+                        distance_from_groundzero,
+                        yield_kt,
+                        self.include_injuries,
+                        self.kill_radius_prescription,
                     )
                     self.fatalities.append(fatality_rate * population_in_pixel)
                     self.hit[lat_idx_kill, lon_idx_kill] = 1
@@ -665,7 +715,7 @@ class Country:
 
         if non_overlapping:
             # (2) Now we apply another mask to make sure there is no overlap with future nukes
-            max_radius = 2 * np.sqrt(yield_kt / 18) * 3
+            max_radius = max_radius_kill * 2
             delta_lon = max_radius / 6371.0 / np.cos(np.radians(lat_groundzero))
             delta_lat = max_radius / 6371.0
             delta_lon = delta_lon * 180 / np.pi
@@ -859,7 +909,12 @@ def calculate_distance_km(lat1, lon1, lat2, lon2):
     return dist
 
 
-def get_fatality_rate(distance_from_groundzero, yield_kt, include_injuries=False):
+def get_fatality_rate(
+    distance_from_groundzero,
+    yield_kt,
+    include_injuries=False,
+    kill_radius_prescription="default",
+):
     """
     Calculates the fatality rate given the distance from the ground zero and the yield of the warhead in kt
 
@@ -870,6 +925,8 @@ def get_fatality_rate(distance_from_groundzero, yield_kt, include_injuries=False
         distance_from_groundzero (float): the distance from the ground zero in km
         yield_kt (float): the yield of the warhead in kt
         include_injuries (bool): if True, includes fatalities + injuries
+        kill_radius_prescription (str): The method to calculate the kill radius, one of "default",
+            "Toon", or "overpressure".
     Returns:
         fatality_rate (float): the fatality rate
     """
@@ -877,7 +934,10 @@ def get_fatality_rate(distance_from_groundzero, yield_kt, include_injuries=False
         sigma0 = 1.87
     else:
         sigma0 = 1.15
-    sigma = sigma0 * np.sqrt(yield_kt / 18)
+    scaling_factor = Country.calculate_kill_radius_scaling_factor(
+        kill_radius_prescription, yield_kt
+    )
+    sigma = sigma0 * scaling_factor
     return np.exp(-(distance_from_groundzero**2) / (2 * sigma**2))
 
 
@@ -1205,17 +1265,26 @@ def build_scaling_curve(
     Returns:
         None. The results are saved to a CSV file in the ../results/ directory.
     """
-    output_file = f"../results/{country_name.lower().replace(' ', '_')}_scaling_results.csv"
+    output_file = (
+        f"../results/{country_name.lower().replace(' ', '_')}_scaling_results.csv"
+    )
     degrade = degrade_factor > 1
 
     # Create or load existing CSV file
     if os.path.exists(output_file):
         results_df = pd.read_csv(output_file)
     else:
-        results_df = pd.DataFrame(columns=[
-            "country", "number_of_weapons", "yield_kt", "fatalities",
-            "industry_destroyed_pct", "soot_emissions", "non_overlapping"
-        ])
+        results_df = pd.DataFrame(
+            columns=[
+                "country",
+                "number_of_weapons",
+                "yield_kt",
+                "fatalities",
+                "industry_destroyed_pct",
+                "soot_emissions",
+                "non_overlapping",
+            ]
+        )
 
     for number_of_weapons in numbers_of_weapons:
         print(f"Number of weapons: {number_of_weapons}")
@@ -1236,18 +1305,20 @@ def build_scaling_curve(
         soot_emissions = country.soot_Tg
         destroyed_custom_locations = country.get_number_destroyed_custom_locations()
 
-        new_row = pd.DataFrame({
-            "country": [country_name],
-            "number_of_weapons": [number_of_weapons],
-            "yield_kt": [yield_kt],
-            "fatalities": [fatalities],
-            "industry_destroyed_pct": [industry_destroyed_pct],
-            "soot_emissions": [soot_emissions],
-            "non_overlapping": [non_overlapping]
-        })
+        new_row = pd.DataFrame(
+            {
+                "country": [country_name],
+                "number_of_weapons": [number_of_weapons],
+                "yield_kt": [yield_kt],
+                "fatalities": [fatalities],
+                "industry_destroyed_pct": [industry_destroyed_pct],
+                "soot_emissions": [soot_emissions],
+                "non_overlapping": [non_overlapping],
+            }
+        )
 
         results_df = pd.concat([results_df, new_row], ignore_index=True)
-        
+
         # Save the updated results after each iteration
         results_df.to_csv(output_file, index=False)
 
