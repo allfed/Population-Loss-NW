@@ -966,8 +966,10 @@ def run_many_countries(
     scenario,
     degrade=False,
     degrade_factor=1,
-    targeting_policy="max_fatality_non_overlapping",
+    targeting_policy="max_fatality",
     include_injuries=False,
+    kill_radius_prescription="default",
+    burn_radius_prescription="default",
 ):
     """
     Run the model for multiple countries and write results to CSV
@@ -978,6 +980,8 @@ def run_many_countries(
         degrade_factor (int): the factor by which to degrade the LandScan data
         targeting_policy (str): the targeting policy to use, either "max_fatality_non_overlapping", "max_fatality", or "random_non_overlapping"
         include_injuries (bool): if True, include fatalities and injuries
+        kill_radius_prescription (str): the method to calculate the kill radius, one of "default", "Toon", or "overpressure"
+        burn_radius_prescription (str): the method to calculate the burn radius, one of "default", "Toon", or "overpressure"
     """
 
     # Open CSV file for writing results
@@ -985,7 +989,8 @@ def run_many_countries(
         writer = csv.writer(csvfile)
         writer.writerow([
             "iso3", "population_loss", "population_loss_pct", "industry_destroyed_pct",
-            "soot_emissions_Tg", "degrade_factor", "targeting_policy", "include_injuries"
+            "soot_emissions_Tg", "degrade_factor", "targeting_policy", "include_injuries",
+            "kill_radius_prescription", "burn_radius_prescription"
         ])  # Write header
 
         for country_name, arsenal in scenario.items():
@@ -994,6 +999,8 @@ def run_many_countries(
                 landscan_year=2022,
                 degrade=degrade,
                 degrade_factor=degrade_factor,
+                kill_radius_prescription=kill_radius_prescription,
+                burn_radius_prescription=burn_radius_prescription,
             )
             if targeting_policy == "max_fatality_non_overlapping":
                 country.attack_max_fatality(
@@ -1019,7 +1026,8 @@ def run_many_countries(
             # Write results for this country immediately to CSV
             writer.writerow([
                 country.iso3, fatalities, population_loss_pct, industry_destroyed_pct,
-                country.soot_Tg, degrade_factor, targeting_policy, include_injuries
+                country.soot_Tg, degrade_factor, targeting_policy, include_injuries,
+                kill_radius_prescription, burn_radius_prescription
             ])
 
 

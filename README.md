@@ -88,7 +88,7 @@ And here is a similar comparison for the amount of soot emissions in Tg. Note th
 See the `results` directory for the results of the scenarios considered.
 
 ### SORT scenario
-This scenario is based on [Toon et al. 2008](https://pubs.aip.org/physicstoday/article/61/12/37/393240/Environmental-consequences-of-nuclear-war). In this scenario, we assume that Russia targets 1000 weapons on the US and 200 warheads each on France, Germany, India, Japan, Pakistan, and the UK. We assume the US targets 1100 weapons each on China and Russia. Targets are selected by finding for a given country where to detonate a given number of warheads over the country's most populated region in a way to maximize the number of fatalities (overlapping targets allowed). In this scenario, we find X million fatalities and Y Tg of soot emissions (assuming half of cities firestorm).
+This scenario is based on [Toon et al. 2008](https://pubs.aip.org/physicstoday/article/61/12/37/393240/Environmental-consequences-of-nuclear-war). In this scenario, we assume that Russia targets 1000 weapons on the US and 200 warheads each on France, Germany, India, Japan, Pakistan, and the UK. We assume the US targets 1100 weapons each on China and Russia. Targets are selected by finding for a given country where to detonate a given number of warheads over the country's most populated region in a way to maximize the number of fatalities (overlapping targets allowed). In this scenario, we find 628 million fatalities and 165 Tg of soot emissions (assuming half of cities firestorm).
 
 ### India-Pakistan
 
