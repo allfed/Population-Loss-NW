@@ -836,7 +836,7 @@ class Country:
             colors = [(0, 0, 0, 0), (1, 0, 0, 1)]  # Transparent and solid red
             n_bins = 2  # We only need 2 bins: 0 and 1
             cmap = mcolors.LinearSegmentedColormap.from_list("custom", colors, N=n_bins)
-            
+
             # Create a binary mask for burn regions
             burn_mask = (self.hit == 2).astype(float)
 
@@ -860,7 +860,7 @@ class Country:
             for i, target in enumerate(self.target_list):
                 folium.CircleMarker(
                     [float(target[0]), float(target[1])],
-                    radius=2*np.sqrt(self.kilotonne[i]/100),
+                    radius=2 * np.sqrt(self.kilotonne[i] / 100),
                     color="red",
                     fill=True,
                     fill_color="red",
@@ -987,11 +987,20 @@ def run_many_countries(
     # Open CSV file for writing results
     with open("../results/scenario_results.csv", "w", newline="") as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow([
-            "iso3", "population_loss", "population_loss_pct", "industry_destroyed_pct",
-            "soot_emissions_Tg", "degrade_factor", "targeting_policy", "include_injuries",
-            "kill_radius_prescription", "burn_radius_prescription"
-        ])  # Write header
+        writer.writerow(
+            [
+                "iso3",
+                "population_loss",
+                "population_loss_pct",
+                "industry_destroyed_pct",
+                "soot_emissions_Tg",
+                "degrade_factor",
+                "targeting_policy",
+                "include_injuries",
+                "kill_radius_prescription",
+                "burn_radius_prescription",
+            ]
+        )  # Write header
 
         for country_name, arsenal in scenario.items():
             country = Country(
@@ -1016,19 +1025,32 @@ def run_many_countries(
                 )
             fatalities = country.get_total_fatalities()
             population_loss_pct = 100 * fatalities / country.population_intact.sum()
-            print(f"{country_name}, fatalities: {fatalities} ({population_loss_pct:.1f}%)")
+            print(
+                f"{country_name}, fatalities: {fatalities} ({population_loss_pct:.1f}%)"
+            )
 
             industry_destroyed_pct = country.get_total_destroyed_industrial_area()
-            print(f"{country_name}, industry destroyed: {100*industry_destroyed_pct:.2f}%")
+            print(
+                f"{country_name}, industry destroyed: {100*industry_destroyed_pct:.2f}%"
+            )
 
             print(f"{country_name}, soot emissions: {country.soot_Tg:.1f} Tg")
 
             # Write results for this country immediately to CSV
-            writer.writerow([
-                country.iso3, fatalities, population_loss_pct, industry_destroyed_pct,
-                country.soot_Tg, degrade_factor, targeting_policy, include_injuries,
-                kill_radius_prescription, burn_radius_prescription
-            ])
+            writer.writerow(
+                [
+                    country.iso3,
+                    fatalities,
+                    population_loss_pct,
+                    industry_destroyed_pct,
+                    country.soot_Tg,
+                    degrade_factor,
+                    targeting_policy,
+                    include_injuries,
+                    kill_radius_prescription,
+                    burn_radius_prescription,
+                ]
+            )
 
 
 class IndustrialAreaHandler(osmium.SimpleHandler):
@@ -1404,4 +1426,80 @@ def plot_scaling_results(yield_kt=100):
     ax2.set_ylabel("% industry destroyed")
 
     plt.tight_layout()
+    plt.show()
+
+
+def plot_static_target_map(target_list, yields, region=None):
+    """
+    Plot a static map of the target list.
+
+    Args:
+        target_list (list): A list of tuples, where each tuple contains the latitude and longitude of a target.
+        yields (list): A list of the yields of the warheads.
+        region (str): Optional. The region to focus on. Options: 'Europe', 'South Asia', 'China', 'CONUS', 'Russia'.
+
+    Returns:
+        None. The plot is displayed.
+    """
+    # Define region boundaries
+    regions = {
+        "Europe": {"llcrnrlat": 35, "urcrnrlat": 70, "llcrnrlon": -10, "urcrnrlon": 40},
+        "South Asia": {
+            "llcrnrlat": 5,
+            "urcrnrlat": 38,
+            "llcrnrlon": 60,
+            "urcrnrlon": 93,
+        },
+        "China": {"llcrnrlat": 15, "urcrnrlat": 55, "llcrnrlon": 70, "urcrnrlon": 140},
+        "CONUS": {
+            "llcrnrlat": 25,
+            "urcrnrlat": 50,
+            "llcrnrlon": -125,
+            "urcrnrlon": -65,
+        },
+        "Russia": {"llcrnrlat": 40, "urcrnrlat": 75, "llcrnrlon": 20, "urcrnrlon": 180},
+    }
+
+    # Create a new figure
+    plt.figure(figsize=(15, 10))
+
+    # Create a Basemap instance
+    if region and region in regions:
+        m = Basemap(projection="mill", **regions[region], resolution="i")
+    else:
+        m = Basemap(
+            projection="mill",
+            llcrnrlat=-60,
+            urcrnrlat=90,
+            llcrnrlon=-180,
+            urcrnrlon=180,
+            resolution="i",
+        )
+
+    # Draw map features
+    m.drawcoastlines(linewidth=0.5)
+    m.drawcountries(linewidth=0.5)
+    m.fillcontinents(color="lightgrey", lake_color="white")
+    m.drawmapboundary(fill_color="white")
+    m.drawstates()
+
+    # Plot targets
+    lats, lons = zip(*target_list)
+    x, y = m(lons, lats)
+
+    # Scale marker sizes based on yield
+    min_size, max_size = 20, 200  # Adjust these values for desired marker size range
+    sizes = [min_size + (max_size - min_size) * np.sqrt(y / 500) for y in yields]
+
+    # Plot targets with size based on yield
+    scatter = m.scatter(
+        x,
+        y,
+        s=sizes,
+        c="red",
+        alpha=0.7,
+        edgecolors="black",
+        linewidth=0.5,
+    )
+
     plt.show()

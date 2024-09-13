@@ -29,6 +29,7 @@ dependencies:
   - azure-storage-common-cpp=12.5.0=h94269e2_4
   - basemap=1.4.1=np126py312h745efaa_0
   - basemap-data=1.3.2=pyhd8ed1ab_3
+  - basemap-data-hires=1.3.2=pyhd8ed1ab_3
   - blosc=1.21.5=hc2324a3_1
   - branca=0.7.2=pyhd8ed1ab_0
   - brotli=1.1.0=hd590300_1
@@ -38,10 +39,10 @@ dependencies:
   - bzip2=1.0.8=hd590300_5
   - c-ares=1.28.1=hd590300_0
   - c-blosc2=2.14.4=hb4ffafa_1
-  - ca-certificates=2024.7.4=hbcca054_0
+  - ca-certificates=2024.8.30=hbcca054_0
   - cairo=1.18.0=h3faef2a_0
   - cartopy=0.23.0=py312h1d6d2e6_1
-  - certifi=2024.7.4=pyhd8ed1ab_0
+  - certifi=2024.8.30=pyhd8ed1ab_0
   - cfitsio=4.4.0=hbdc6101_1
   - charls=2.4.2=h59595ed_0
   - charset-normalizer=3.3.2=pyhd8ed1ab_0
@@ -139,7 +140,8 @@ dependencies:
   - libexpat=2.6.2=h59595ed_0
   - libffi=3.4.2=h7f98852_5
   - libflac=1.4.3=h59595ed_0
-  - libgcc-ng=13.2.0=h77fa898_9
+  - libgcc=14.1.0=h77fa898_1
+  - libgcc-ng=14.1.0=h69a702a_1
   - libgcrypt=1.10.3=hd590300_0
   - libgdal=3.9.0=h471f4ab_7
   - libgettextpo=0.22.5=h59595ed_2
@@ -147,7 +149,7 @@ dependencies:
   - libgfortran-ng=13.2.0=h69a702a_9
   - libgfortran5=13.2.0=h3d2ce59_9
   - libglib=2.80.2=hf974151_0
-  - libgomp=13.2.0=h77fa898_9
+  - libgomp=14.1.0=h77fa898_1
   - libgoogle-cloud=2.25.0=h2736e30_0
   - libgoogle-cloud-storage=2.25.0=h3d9a0c8_0
   - libgpg-error=1.49=h4f305b6_0
@@ -177,7 +179,8 @@ dependencies:
   - libspatialite=5.1.0=h6fbd9c4_7
   - libsqlite=3.46.0=hde9e2c9_0
   - libssh2=1.11.0=h0841786_0
-  - libstdcxx-ng=13.2.0=hc0a3c3a_9
+  - libstdcxx=14.1.0=hc0a3c3a_1
+  - libstdcxx-ng=14.1.0=h4852527_1
   - libsystemd0=255=h3516f8a_1
   - libtiff=4.6.0=h1dd3fc0_3
   - libuuid=2.38.1=h0b41bf4_0
@@ -210,7 +213,7 @@ dependencies:
   - numpy=1.26.4=py312heda63a1_0
   - openjpeg=2.5.2=h488ebb8_0
   - openpyxl=3.1.5=py312h98912ed_0
-  - openssl=3.3.1=h4bc722e_2
+  - openssl=3.3.2=hb9d3cd8_0
   - overpy=0.7=pyhd8ed1ab_0
   - packaging=24.1=pyhd8ed1ab_0
   - pandas=2.2.2=py312h1d6d2e6_1
