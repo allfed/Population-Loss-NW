@@ -143,6 +143,7 @@ class Country:
         industry=True,
         burn_radius_prescription="default",
         kill_radius_prescription="default",
+        avoid_border_regions=False,
     ):
         """
         Load the population data for the specified country
@@ -158,6 +159,8 @@ class Country:
             industry (bool): if True, then load industrial zones
             burn_radius_prescription (str): the method to calculate the burn radius ("Toon", "default", or "overpressure")
             kill_radius_prescription (str): the method to calculate the kill radius ("Toon", "default", or "overpressure")
+            avoid_border_regions (bool): if True, prohibit targets in regions close to the country's border, implemented
+                for the US-Mexico border.
         """
         self.country_name = country_name
         # Load landscan data
@@ -170,6 +173,7 @@ class Country:
 
         self.burn_radius_prescription = burn_radius_prescription
         self.kill_radius_prescription = kill_radius_prescription
+        self.avoid_border_regions = avoid_border_regions
 
         self.approximate_resolution = 1 * self.degrade_factor  # km
         if use_HD:
@@ -257,6 +261,7 @@ class Country:
 
         self.hit = np.zeros(population_data_country.shape)
         self.exclude = np.zeros(population_data_country.shape)
+
         self.target_list = []
         self.fatalities = []
         self.kilotonne = []
@@ -355,7 +360,10 @@ class Country:
         self.data_averaged = convolve(self.data, kernel, mode="constant")
 
     def attack_max_fatality(
-        self, arsenal, include_injuries=False, non_overlapping=True
+        self,
+        arsenal,
+        include_injuries=False,
+        non_overlapping=True,
     ):
         """
         Attack the country by finding where to detonate a given number of warheads over the country's most populated region.
@@ -372,6 +380,13 @@ class Country:
             )
         self.hit = np.zeros(self.data.shape)
         self.exclude = np.zeros(self.data.shape)
+
+        if self.avoid_border_regions:
+            mask_zero = (self.data == 0).astype(int)
+            kernel = np.ones((3, 3))
+            convolved = convolve(mask_zero, kernel, mode="constant", cval=0)
+            self.exclude[convolved > 0] = 1
+
         self.target_list = []
         self.fatalities = []
         self.kilotonne = []
@@ -1503,6 +1518,6 @@ def plot_static_target_map(target_list, yields, region=None):
         linewidth=0.5,
     )
 
-    m.drawmapboundary(fill_color="white", linewidth=0.4, color='black')
+    m.drawmapboundary(fill_color="white", linewidth=0.4, color="black")
     plt.savefig("../images/newmap.png", bbox_inches="tight")
     plt.show()
