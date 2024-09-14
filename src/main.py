@@ -792,6 +792,7 @@ class Country:
         show_population_density=False,
         show_industrial_areas=False,
         show_custom_locations=False,
+        ms=2,
     ):
         """
         Make an interactive map
@@ -800,6 +801,7 @@ class Country:
             show_population_density (bool): if True, show the population density
             show_industrial_areas (bool): if True, show the industrial areas
             show_custom_locations (bool): if True, show the custom locations from data/custom-locations/*.csv
+            ms (float): the size of the markers
         """
 
         # Create a folium map centered around the average coordinates
@@ -860,7 +862,7 @@ class Country:
             for i, target in enumerate(self.target_list):
                 folium.CircleMarker(
                     [float(target[0]), float(target[1])],
-                    radius=2 * np.sqrt(self.kilotonne[i] / 100),
+                    radius=ms * np.sqrt(self.kilotonne[i] / 100),
                     color="red",
                     fill=True,
                     fill_color="red",
