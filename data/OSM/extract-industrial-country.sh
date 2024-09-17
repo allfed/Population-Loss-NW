@@ -65,6 +65,7 @@ declare -A country_region=(
     ["netherlands"]="europe"
     ["new zealand"]="australia-oceania"
     ["nicaragua"]="central-america"
+    ["north korea"]="asia"
     ["north macedonia"]="europe"
     ["norway"]="europe"
     ["pakistan"]="asia"
