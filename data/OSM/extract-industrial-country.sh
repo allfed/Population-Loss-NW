@@ -54,6 +54,7 @@ declare -A country_region=(
     ["liechtenstein"]="europe"
     ["lithuania"]="europe"
     ["luxembourg"]="europe"
+    ["macedonia"]="europe"
     ["malaysia"]="asia"
     ["malta"]="europe"
     ["mexico"]="north-america"

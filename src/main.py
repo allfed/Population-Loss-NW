@@ -181,7 +181,10 @@ class Country:
 
         # Get the geometry of the specified country
         country = gpd.read_file("../data/natural-earth/ne_10m_admin_0_countries.shp")
-        country = country[country.ADMIN == country_name]
+        if country_name == "Czech Republic":
+            country = country[country.ADMIN == "Czechia"]
+        else:
+            country = country[country.ADMIN == country_name]
 
         # Get country bounds
         country_bounds = country.geometry.bounds.iloc[0]
