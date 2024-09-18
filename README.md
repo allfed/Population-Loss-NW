@@ -53,6 +53,8 @@ To translate the loss of industrial capacity into loss of agricultural productio
 
 3. `scripts/impact-of-loss-of-industry.ipynb` transforms loss of total industrial capacity per country into loss of industrial capacity per sector using the code in `src/sectors.py` and `data/industry-sectors/`. In addition, it also calculates the loss of agricultural production due to loss of fertilizers and pesticides (using the code in `src/inputshock.py`). This script produces the file that can be used as input for the [integrated model](https://github.com/allfed/allfed-integrated-model).
 
+4. The other notebooks in `scripts/` are for the specific scenarios considered so far, all described in these [slides](https://docs.google.com/presentation/d/1MnmQaBrXC9f9iq4tgrjnwuggpzrl4G63ftm2RXDTaWI/edit?usp=drive_link).
+
 ## Verification
 To verify that the population loss implementation is correct, we can compare to the [results](https://pubs.aip.org/view-large/figure/45882429/37_1_f1.jpg) of Toon et al. Below is a comparison between the number of casualties (in millions) in different scenarios. Note that this includes fatalities and injuries to facilitate the comparison with the results of Toon et al. Everything seems to work ok. Some numbers are significantly higher, but this can be attributed to population increase over the years (India in particular). Note that this verification was performed using the same scaling assumptions as Toon et al. (the default code uses different scaling assumptions).
 
@@ -85,15 +87,4 @@ And here is a similar comparison for the amount of soot emissions in Tg. Note th
 | **Total** | **180** | **198.5** |  
 
 ## Scenarios considered
-See the `results` directory for the results of the scenarios considered.
-
-### SORT scenario
-This scenario is based on [Toon et al. 2008](https://pubs.aip.org/physicstoday/article/61/12/37/393240/Environmental-consequences-of-nuclear-war). In this scenario, we assume that Russia targets 1000 weapons on the US and 200 warheads each on France, Germany, India, Japan, Pakistan, and the UK. We assume the US targets 1100 weapons each on China and Russia. Targets are selected by finding for a given country where to detonate a given number of warheads over the country's most populated region in a way to maximize the number of fatalities (overlapping targets allowed). In this scenario, we find 628 million fatalities and 165 Tg of soot emissions (assuming half of cities firestorm).
-
-### India-Pakistan
-
-### NATO-Russia
-
-### US-China
-
-### Worldwide nuclear war
+See theses [slides](https://docs.google.com/presentation/d/1MnmQaBrXC9f9iq4tgrjnwuggpzrl4G63ftm2RXDTaWI/edit?usp=drive_link) for a description of the scenarios considered.
