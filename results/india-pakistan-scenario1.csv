@@ -1,0 +1,3 @@
+iso3,population_loss,population_loss_pct,industry_destroyed_pct,soot_emissions_Tg,degrade_factor,targeting_policy,include_injuries,kill_radius_prescription,burn_radius_prescription
+IND,38255266,2.8,1.6,8.4,1,max_fatality,False,default,default
+PAK,21843239,9.0,11.4,5.5,1,max_fatality,False,default,default

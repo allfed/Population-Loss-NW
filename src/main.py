@@ -221,6 +221,13 @@ class Country:
             min_lon_idx = np.argmin(np.abs(lons + 6))
             max_lon_idx = np.argmin(np.abs(lons - 10))
 
+        # For New Zealand, only include the main islands
+        if country_name == "New Zealand":
+            min_lat_idx = np.argmin(np.abs(lats + 34))
+            max_lat_idx = np.argmin(np.abs(lats + 46))
+            min_lon_idx = np.argmin(np.abs(lons - 165))
+            max_lon_idx = np.argmin(np.abs(lons - 178))
+
         # Extract the data for the region
         region_data = landscan.data[
             min_lat_idx : max_lat_idx + 1, min_lon_idx : max_lon_idx + 1

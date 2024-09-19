@@ -14,16 +14,17 @@ def calculate_sector_losses(total_industry_loss):
     sector_losses = {}
     sector_losses = calculate_fertilizer_loss(total_industry_loss, sector_losses)
     sector_losses = calculate_pesticide_loss(total_industry_loss, sector_losses)
+    sector_losses = calculate_world_industry_loss(total_industry_loss, sector_losses)
 
     # Print a nicely formatted table of sector losses
     print("\nLosses per sector for the whole world:")
-    print("-" * 40)
-    print(f"{'Sector':<20} {'Loss (%)':<10}")
-    print("-" * 40)
+    print("-" * 55)
+    print(f"{'Sector':<40} {'Loss (%)':<10}")
+    print("-" * 55)
     for sector, loss in sector_losses.items():
         sector_name = sector.replace("_loss_percent", "").replace("_", " ").capitalize()
-        print(f"{sector_name:<20} {loss:<10.1f}")
-    print("-" * 40)
+        print(f"{sector_name:<40} {loss:<10.2f}")
+    print("-" * 55)
 
     return sector_losses
 
@@ -388,13 +389,15 @@ def load_industry_loss(file_paths, hemp_disable_factor=0.75):
     # Fill NaN values with 0
     df = df.fillna(0)
 
-    # df = df[["iso3", "industry_destroyed_pct", "industry_hempd_pct"]]
-    df["industry_loss_pct"] = (
-        df["industry_destroyed_pct"]
-        + (1 - df["industry_destroyed_pct"] / 100)
-        * df["industry_hempd_pct"]
-        * hemp_disable_factor
-    )
+    if "industry_hempd_pct" in df.columns:
+        df["industry_loss_pct"] = (
+            df["industry_destroyed_pct"]
+            + (1 - df["industry_destroyed_pct"] / 100)
+            * df["industry_hempd_pct"]
+            * hemp_disable_factor
+        )
+    else:
+        df["industry_loss_pct"] = df["industry_destroyed_pct"]
 
     return df
 
@@ -409,3 +412,38 @@ def make_file_for_integrated_model(
     df_yield = df_yield.merge(df, on=["iso3"])
     df_yield["yield_loss_pct"] = df_yield["yield_loss_pct"] * -1
     df_yield.to_csv(output_file, index=False)
+
+
+def calculate_world_industry_loss(total_industry_loss, sector_losses):
+    """
+    Calculate the total loss of industrial capacity by multiplying the per-country % industry loss
+    by its share of the world's industrial GDP.
+
+    Args:
+        total_industry_loss (dict): Total industry loss per country (%)
+        sector_losses (dict): Sector losses for the whole world (%)
+
+    Returns:
+        dict: Updated sector losses for the whole world (%)
+    """
+    # Load the industrial GDP data
+    industry_gdp = pd.read_csv("../data/industry-sectors/industry-PPP.csv")
+
+    # Initialize total loss
+    total_loss = 0
+
+    # Calculate the total world industrial GDP
+    total_world_gdp_industry = industry_gdp["Industrial_GDP_PPP_USD_M"].sum()
+
+    # Calculate the total loss of industrial capacity
+    for country, loss_percentage in total_industry_loss.items():
+        if country in industry_gdp["iso3"].values:
+            country_gdp = industry_gdp[industry_gdp["iso3"] == country]["Industrial_GDP_PPP_USD_M"].iloc[0]
+            weighted_loss = (loss_percentage * country_gdp) / total_world_gdp_industry
+            total_loss += weighted_loss
+        else:
+            print(f"Country {country} not found in industrial GDP data")
+
+    sector_losses["world_overall_industry_loss"] = total_loss
+
+    return sector_losses
