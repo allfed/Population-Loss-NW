@@ -19,6 +19,7 @@ import rasterio
 from branca.colormap import LinearColormap
 from geopy import distance
 from mpl_toolkits.basemap import Basemap
+from scipy.interpolate import griddata
 from scipy.ndimage import convolve
 from shapely.geometry import box, Polygon
 from skimage.measure import block_reduce
@@ -957,7 +958,8 @@ def get_fatality_rate(
     kill_radius_prescription="default",
 ):
     """
-    Calculates the fatality rate given the distance from the ground zero and the yield of the warhead in kt
+    Calculates the fatality rate given the distance from the ground zero and the yield of the warhead in kt.
+    This accounts for blast, fire and prompt radiation. For fallout, see get_fatality_rate_fallout.
 
     Based on Toon et al. 2007, 2008 but using average yield of Hiroshima and Nagasaki (15kt and 21kt)
     for the scaling
@@ -980,6 +982,261 @@ def get_fatality_rate(
     )
     sigma = sigma0 * scaling_factor
     return np.exp(-(distance_from_groundzero**2) / (2 * sigma**2))
+
+
+def get_fatality_rate_fallout(radiation_dose_rads):
+    """
+    Calculates the fatality rate given the radiation dose in rads. Assumes
+    an LD50 of 350 rads. Assumes that 50% of the population has a protection
+    factor of 3 and 50% of the population has a protection factor of 10.
+
+    Args:
+        radiation_dose_rads (float): the radiation dose in rads
+
+    Returns:
+        fatality_rate (float): the fatality rate
+    """
+    # Step 4 - convert the radiation dose into a fatality rate
+    alpha0 = lambda D: max(
+        0, min(D / 300.0 - 2.0 / 3.0, 1)
+    )  # Ensure alpha0 is between 0 and 1
+
+    # Calculate the fatality rate considering protection factors
+    alpha = 0.5 * alpha0(radiation_dose_rads / 3.0) + 0.5 * alpha0(
+        radiation_dose_rads / 10.0
+    )
+    return alpha
+
+
+def calculate_wind_adjustment_factor(windspeed_kmh):
+    """
+    Calculates the wind adjustment factor for nuclear fallout spread. Note that this
+    is an verage over the vertical extent of the atmosphere relevant for fallout transport,
+    not just the ground level wind speed
+
+    Args:
+        windspeed_kmh (float): Wind speed in km/h.
+
+    Returns:
+        float: Wind adjustment factor F.
+
+    Warns:
+        UserWarning: If the wind speed is outside the reliable range for this model.
+    """
+    v_mph = windspeed_kmh * 0.621  # Convert km/h to mph
+
+    if windspeed_kmh < 13 or windspeed_kmh > 72:
+        warnings.warn(
+            "Wind speed is outside the reliable range for this model (13-72 km/h).",
+            UserWarning,
+        )
+
+    if windspeed_kmh <= 24:
+        F = 1 + (v_mph - 15) / 30
+    else:
+        F = 1 + (v_mph - 15) / 60
+
+    return F
+
+
+def calculate_reference_dose_contours(
+    yield_kilotons, windspeed_kmh=24, fission_fraction=0.5
+):
+    """
+    Calculate reference dose rate contours for a given yield, wind speed, and fission fraction.
+
+    Args:
+        yield_kilotons (float): Yield of the weapon in kilotons
+        windspeed_kmh (float): Wind speed in km/h (default 24)
+        fission_fraction (float): Fraction of energy from fission (default 0.5)
+
+    Returns:
+        dict: Dictionary of reference dose rates and their corresponding contour dimensions in km
+    """
+    # Cache for storing previously calculated contours
+    if not hasattr(calculate_reference_dose_contours, "cache"):
+        calculate_reference_dose_contours.cache = {}
+
+    # Check if result is already in cache
+    cache_key = (yield_kilotons, windspeed_kmh, fission_fraction)
+    if cache_key in calculate_reference_dose_contours.cache:
+        return calculate_reference_dose_contours.cache[cache_key]
+
+    W = yield_kilotons
+    F = calculate_wind_adjustment_factor(windspeed_kmh)
+
+    reference_dose_rates = [3000, 1000, 300, 100, 30, 10, 3, 1]
+    contours = {}
+
+    miles_to_km = 1.60934
+
+    for dose_rate in reference_dose_rates:
+        if dose_rate == 3000:
+            downwind = 0.95 * W**0.45 * F * miles_to_km
+            max_width = 0.0076 * W**0.86 * miles_to_km
+        elif dose_rate == 1000:
+            downwind = 1.8 * W**0.45 * F * miles_to_km
+            max_width = 0.036 * W**0.76 * miles_to_km
+        elif dose_rate == 300:
+            downwind = 4.5 * W**0.45 * F * miles_to_km
+            max_width = 0.13 * W**0.66 * miles_to_km
+        elif dose_rate == 100:
+            downwind = 8.9 * W**0.45 * F * miles_to_km
+            max_width = 0.38 * W**0.56 * miles_to_km
+        elif dose_rate == 30:
+            downwind = 16 * W**0.45 * F * miles_to_km
+            max_width = 0.76 * W**0.56 * miles_to_km
+        elif dose_rate == 10:
+            downwind = 24 * W**0.45 * F * miles_to_km
+            max_width = 1.4 * W**0.53 * miles_to_km
+        elif dose_rate == 3:
+            downwind = 30 * W**0.45 * F * miles_to_km
+            max_width = 2.2 * W**0.50 * miles_to_km
+        elif dose_rate == 1:
+            downwind = 40 * W**0.45 * F * miles_to_km
+            max_width = 3.3 * W**0.48 * miles_to_km
+
+        # Adjust dose rate by fission fraction
+        adjusted_dose_rate = dose_rate * fission_fraction
+
+        contours[adjusted_dose_rate] = {
+            "downwind_distance": downwind,
+            "max_width": max_width,
+        }
+
+    # Store result in cache
+    calculate_reference_dose_contours.cache[cache_key] = contours
+
+    return contours
+
+
+def interpolate_dose_rate(contours, downwind_distance, perpendicular_distance):
+    """
+    Interpolate the dose rate at a given point based on the contours using 2D
+    interpolation in log space.
+
+    Args:
+        contours (dict): Output from calculate_reference_dose_contours
+        downwind_distance (float): Distance downwind from ground zero in km
+        perpendicular_distance (float): Perpendicular distance from the downwind axis in km
+
+    Returns:
+      float: Interpolated dose rate at the given point
+    """
+    # Handle negative downwind distance
+    if downwind_distance < 0:
+        return 0
+
+    # Check if we've already processed these contours
+    if not hasattr(interpolate_dose_rate, "cache"):
+        interpolate_dose_rate.cache = {}
+
+    cache_key = id(contours)
+    if cache_key not in interpolate_dose_rate.cache:
+        dose_rates = np.array(list(contours.keys()))
+        downwind_distances = np.array(
+            [contours[rate]["downwind_distance"] for rate in dose_rates]
+        )
+        max_widths = np.array([contours[rate]["max_width"] for rate in dose_rates])
+
+        # Create a grid of points for interpolation
+        grid_points = []
+        grid_values = []
+
+        for i, rate in enumerate(dose_rates):
+            # Add points for each corner of the rectangle
+            grid_points.extend(
+                [
+                    [downwind_distances[i], max_widths[i] / 2],
+                    [downwind_distances[i], -max_widths[i] / 2],
+                    [0, max_widths[i] / 2],
+                    [0, -max_widths[i] / 2],
+                ]
+            )
+            log_rate = np.log10(rate)
+            grid_values.extend([log_rate, log_rate, log_rate, log_rate])
+
+        # Convert to numpy arrays
+        grid_points = np.array(grid_points)
+        grid_values = np.array(grid_values)
+        max_downwind = downwind_distances.max()
+        max_perpendicular = max_widths.max() / 2
+
+        interpolate_dose_rate.cache[cache_key] = {
+            "grid_points": grid_points,
+            "grid_values": grid_values,
+            "max_downwind": max_downwind,
+            "max_perpendicular": max_perpendicular,
+        }
+
+    else:
+        cached = interpolate_dose_rate.cache[cache_key]
+        grid_points = cached["grid_points"]
+        grid_values = cached["grid_values"]
+        max_downwind = cached["max_downwind"]
+        max_perpendicular = cached["max_perpendicular"]
+
+    # If the point is outside all contours, return 0
+    if downwind_distance > max_downwind or perpendicular_distance > max_perpendicular:
+        return 0
+
+    # Perform 2D interpolation in log space
+    interpolated_value = griddata(
+        grid_points,
+        grid_values,
+        [(downwind_distance, perpendicular_distance)],
+        method="linear",
+    )
+
+    # If the point is outside all contours, griddata returns nan
+    if np.isnan(interpolated_value):
+        return 0
+
+    # Convert back from log space
+    return 10 ** float(interpolated_value[0])
+
+
+def calculate_total_dose(
+    downwind_distance,
+    perpendicular_distance,
+    yield_kt,
+    windspeed=24,
+    tb=48,
+    fission_fraction=0.5,
+):
+    """
+    Calculate the total dose at a given point based on the contours using 2D
+    interpolation in log space.
+
+    Args:
+        downwind_distance (float): Distance downwind from ground zero in km
+        perpendicular_distance (float): Perpendicular distance from the downwind axis in km
+        yield_kt (float): Yield of the weapon in kilotons
+        windspeed (float): Wind speed in km/h (default 24)
+        tb (float): Total time of dose integration in hours after the detonation (default 48)
+        fission_fraction (float): Fraction of energy from fission (default 0.5)
+
+    Returns:
+        float: Total dose at the given point in rads
+    """
+
+    # Calculate distance from ground zero
+    d = np.sqrt(downwind_distance**2 + perpendicular_distance**2)
+
+    # Calculate t_a in hours, this is the time since the detonation, when
+    # fallout starts to be deposited
+    ta = d / windspeed  # hours
+
+    # Calculate reference dose contours
+    contours = calculate_reference_dose_contours(yield_kt, windspeed, fission_fraction)
+
+    # Interpolate dose rate
+    r = interpolate_dose_rate(contours, downwind_distance, perpendicular_distance)
+
+    # Calculate total dose
+    D = 5 * r * (ta**-0.2 - tb**-0.2)
+
+    return D
 
 
 def process_chunk(chunk, country, region_data_shape):
