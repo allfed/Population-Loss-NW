@@ -32,6 +32,8 @@ Finally, we also calculate the amount of soot emissions in Tg as in [Toon et al.
 
 Note that other targeting options are also supported. Currently, there is an option for following the [OPEN-RISOP](https://github.com/davidteter/OPEN-RISOP/tree/main/TARGET%20LAYDOWNS) target list for the US, and an option for following the [declassified 1956 US target list](https://futureoflife.org/resource/us-nuclear-targets/) for Russia and China.
 
+Fatalities due to nuclear fallout from ground bursts can now also be calculated. The methodology is described in [this document](https://docs.google.com/document/d/1stBmeMabT2VQsL-KfVvUlFNzkmfZIK3tQ5-WUUVNldc/edit?usp=sharing).
+
 ### Agricultural loss
 To translate the loss of industrial capacity into loss of agricultural production, we use the data from [Ahvo et al. 2023](https://doi.org/10.1038/s43016-023-00873-z). First, we calculate the loss of fertilizers and pesticides due to the destruction or disablement of industrial capacity using data for fertilizer and pesticide production by country. Then, we use the data from Ahvo et al. to estimate the loss of agricultural production due to the loss of fertilizers and pesticides. This is done for each country separately assuming that the loss of fertilizers and pesticides applies globally. For each country, we calculate the loss of agricultural production for 12 crops and average these numbers using the number of calories supplied by each crop as weights. We are making the assumption that all yield loss sources are multiplicative.
 
@@ -43,7 +45,6 @@ To translate the loss of industrial capacity into loss of agricultural productio
 * [Ahvo et al. 2023](https://doi.org/10.1038/s43016-023-00873-z) for data on yield loss due to input shock
 
 ## Limitations
-* Nuclear fallout is not considered when calculating casualties.
 * The code requires quite a bit of RAM if the target country is large. If this is an issue, you can use the `degrade` option to degrade the resolution of the LandScan data. The original resolution is 30 arc-seconds, so the individual pixels are somewhat smaller than 1 km² for the regions most susceptible to nuclear war.
 
 ## Codebase orientation

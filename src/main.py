@@ -267,11 +267,28 @@ class Country:
         self.lats = lats[min_lat_idx : max_lat_idx + 1]
         self.lons = lons[min_lon_idx : max_lon_idx + 1]
 
+        # Calculate grid spacing and store as instance variables
+        if len(self.lats) >= 2:
+            self.delta_lat = abs(self.lats[1] - self.lats[0])
+        else:
+            self.delta_lat = 0.0
+
+        if len(self.lons) >= 2:
+            self.delta_lon = abs(self.lons[1] - self.lons[0])
+        else:
+            self.delta_lon = 0.0
+
         self.data = population_data_country.copy()
         self.population_intact = population_data_country.copy()
 
+        # This will be used to store the hit locations
         self.hit = np.zeros(population_data_country.shape)
+
+        # This will be used to exclude regions from attack
         self.exclude = np.zeros(population_data_country.shape)
+
+        # This will be used to store the radiation fallout dose in rads
+        self.fallout = np.zeros(population_data_country.shape)
 
         self.target_list = []
         self.fatalities = []
@@ -378,6 +395,7 @@ class Country:
     ):
         """
         Attack the country by finding where to detonate a given number of warheads over the country's most populated region.
+        Uses air bursts where we assume there is no radiation fallout.
 
         Args:
             arsenal (list): a list of the yield of the warheads in kt
@@ -409,6 +427,7 @@ class Country:
     def attack_random_non_overlapping(self, arsenal, include_injuries=False):
         """
         Attack the country by detonating a given number of warheads at random locations without overlapping targets.
+        Uses air bursts where we assume there is no radiation fallout.
 
         Args:
             arsenal (list): a list of the yield of the warheads in kt
@@ -430,7 +449,8 @@ class Country:
 
     def attack_next_random_target(self, yield_kt):
         """
-        Attack a random location in the country that hasn't been hit yet
+        Attack a random location in the country that hasn't been hit yet.
+        Uses air bursts where we assume there is no radiation fallout.
 
         Args:
             yield_kt (float): the yield of the warhead in kt
@@ -460,7 +480,8 @@ class Country:
 
     def attack_next_most_populated_target(self, yield_kt, non_overlapping=True):
         """
-        Attack the next most populated region
+        Attack the next most populated region.
+        Uses air bursts where we assume there is no radiation fallout.
 
         Args:
             yield_kt (float): the yield of the warhead in kt
@@ -528,21 +549,29 @@ class Country:
         self.kilotonne = []
 
         targets = get_OPEN_RISOP_nuclear_war_plan()
-        for city, (lat, lon) in targets.items():
+        for city, (lat, lon, hob) in targets.items():
+            if hob == 0:
+                airburst = False    
+            else:
+                airburst = True
             self.attack_specific_target(
-                lat, lon, yield_kt, include_injuries=include_injuries
+                lat, lon, yield_kt, include_injuries=include_injuries, airburst=airburst
             )
         return
 
-    def attack_specific_target(self, lat, lon, yield_kt, CEP=0, include_injuries=False):
+    def attack_specific_target(
+        self, lat, lon, yield_kt, CEP=0, include_injuries=False, airburst=True
+    ):
         """
-        Attack a specific location in the country, with a circular error probable of the weapon (in meters)
+        Attack a specific location in the country, with a circular error probable of the weapon (in meters).
 
         Args:
             lat (float): the latitude of the target location
             lon (float): the longitude of the target location
             yield_kt (float): the yield of the warhead in kt
             CEP (float): the circular error probable of the weapon (in meters), use 0 for 100% accuracy
+            airburst (bool): if True, use air bursts where we assume there is no radiation fallout
+                if False, use ground bursts and include radiation fallout
         """
         self.include_injuries = include_injuries
 
@@ -561,8 +590,97 @@ class Country:
         actual_lon = lon + delta_lon
 
         self.apply_destruction(actual_lat, actual_lon, yield_kt)
+
+        if not airburst:
+            self.add_fallout(actual_lat, actual_lon, yield_kt)
+
         self.target_list.append((actual_lat, actual_lon))
         self.kilotonne.append(yield_kt)
+
+    def add_fallout(self, lat_groundzero, lon_groundzero, yield_kt, threshold_rads=10):
+        """
+        Add fallout radiation dose to each pixel based on the ground zero location and weapon yield.
+        Dynamically determines the area of significant radiation.
+        Wind is assumed to blow eastward in the northern hemisphere, and westward in the southern hemisphere.
+
+        Args:
+            lat_groundzero (float): Latitude of the ground zero.
+            lon_groundzero (float): Longitude of the ground zero.
+            yield_kt (float): Yield of the weapon in kilotons.
+            threshold_rads (float): Radiation threshold in rads to determine significant area,
+                calculations are only performed in that region for efficiency. This should be small
+                enough so that even with many warheads, the dose will not exceed the lethal dose.
+        """
+        # Determine wind direction based on hemisphere
+        hemisphere = "north" if lat_groundzero >= 0 else "south"
+        wind_direction_deg = 90 if hemisphere == "north" else 270  # East or West
+        wind_direction_rad = math.radians(wind_direction_deg)
+
+        # Function to find distance where radiation falls below threshold
+        def find_threshold_distance(direction):
+            distance = 1  # Start with 1 km
+            while True:
+                if direction == "downwind":
+                    dose = calculate_total_dose(distance, 0.1, yield_kt)
+                else:  # perpendicular
+                    dose = calculate_total_dose(0.1, distance, yield_kt)
+
+                if dose < threshold_rads:
+                    return distance
+                distance *= 1.5  # Increase distance by 50% each iteration
+
+        # Find threshold distances
+        downwind_distance = find_threshold_distance("downwind")
+        perpendicular_distance = find_threshold_distance("perpendicular")
+
+        # Calculate lat/lon bounds
+        km_per_degree_lat = 111.32  # Approximate
+        km_per_degree_lon = 111.32 * math.cos(math.radians(lat_groundzero))
+
+        lat_range = perpendicular_distance / km_per_degree_lat
+        lon_range = downwind_distance / km_per_degree_lon
+
+        lat_min = max(lat_groundzero - lat_range, min(self.lats))
+        lat_max = min(lat_groundzero + lat_range, max(self.lats))
+
+        # Extend only in the wind direction
+        if wind_direction_deg == 90:  # East wind
+            lon_min = lon_groundzero
+            lon_max = min(lon_groundzero + lon_range, max(self.lons))
+        else:  # West wind
+            lon_min = max(lon_groundzero - lon_range, min(self.lons))
+            lon_max = lon_groundzero
+
+        # Adjust longitudes to handle meridian crossing
+        if lon_max > 180:
+            lon_max = lon_max - 360
+        if lon_min < -180:
+            lon_min = lon_min + 360
+
+        # Iterate over pixels within the defined range
+        for i, lat in enumerate(self.lats):
+            if lat_min <= lat <= lat_max:
+                for j, lon in enumerate(self.lons):
+                    if lon_min <= lon <= lon_max:
+                        distance, bearing = calculate_distance_km(
+                            lat_groundzero, lon_groundzero, lat, lon, bearing=True
+                        )
+
+                        angle_diff_rad = math.radians(bearing - wind_direction_deg)
+                        downwind_distance = distance * math.cos(angle_diff_rad)
+                        perpendicular_distance = distance * math.sin(angle_diff_rad)
+
+                        if downwind_distance > 0:
+                            dose = calculate_total_dose(
+                                downwind_distance=downwind_distance,
+                                perpendicular_distance=perpendicular_distance,
+                                yield_kt=yield_kt,
+                            )
+
+                            # Add the calculated dose to the fallout array
+                            self.fallout[i, j] += dose
+
+        return
 
     @staticmethod
     def calculate_max_radius_burn(burn_radius_prescription, yield_kt):
@@ -623,7 +741,8 @@ class Country:
     ):
         """
         Removing the population from the specified location and the max_radius_kill km around it and
-        destroy infrastructure within max_radius_burn km around it
+        destroy infrastructure within max_radius_burn km around it.
+        Uses air bursts where we assume there is no radiation fallout.
 
         Args:
             lat (float): the latitude of the target location
@@ -770,9 +889,25 @@ class Country:
 
     def get_total_fatalities(self):
         """
-        Get the total fatalities, will include both fatalities and injuries if include_injuries is True
+        Get the total fatalities, including both immediate fatalities from blast/fire/prompt radiation
+        and near-term fatalities from radiation fallout. Will include both fatalities and injuries
+        if include_injuries is True.
         """
-        return int(sum(self.fatalities))
+        immediate_fatalities = int(sum(self.fatalities))
+
+        # Calculate radiation fatalities
+        radiation_fatalities = 0
+        for i in range(self.data.shape[0]):
+            for j in range(self.data.shape[1]):
+                radiation_dose = self.fallout[i, j]
+                fatality_rate = get_fatality_rate_fallout(radiation_dose)
+                radiation_fatalities += fatality_rate * self.data[i, j]
+
+        radiation_fatalities = int(radiation_fatalities)
+
+        total_fatalities = immediate_fatalities + radiation_fatalities
+
+        return total_fatalities, immediate_fatalities, radiation_fatalities
 
     def get_total_destroyed_industrial_area(self):
         """
@@ -804,8 +939,9 @@ class Country:
         """
         Print diagnostic information
         """
+        total, immediate, radiation = self.get_total_fatalities()
         print(
-            f"Total fatalities: {self.get_total_fatalities()} ({self.get_total_fatalities()/self.population_intact.sum()*100:.1f}%)"
+            f"Total fatalities: {total} ({total/self.population_intact.sum()*100:.1f}%), of which {radiation/total*100:.1f}% are from radiation fallout"
         )
         print(
             f"Total destroyed industrial area: {100*self.get_total_destroyed_industrial_area():.1f}%"
@@ -818,6 +954,7 @@ class Country:
         show_population_density=False,
         show_industrial_areas=False,
         show_custom_locations=False,
+        show_fallout=False,
         ms=2,
     ):
         """
@@ -827,6 +964,7 @@ class Country:
             show_population_density (bool): if True, show the population density
             show_industrial_areas (bool): if True, show the industrial areas
             show_custom_locations (bool): if True, show the custom locations from data/custom-locations/*.csv
+            show_fallout (bool): if True, show the radiation fallout
             ms (float): the size of the markers
         """
 
@@ -931,16 +1069,53 @@ class Country:
                     icon=folium.Icon(color=color, icon="info-sign"),
                 ).add_to(m)
 
+        # Show fallout
+        if show_fallout:
+            bounds = [
+                [np.min(self.lats), np.min(self.lons)],
+                [np.max(self.lats), np.max(self.lons)],
+            ]
+
+            # Create a custom colormap for fallout
+            fallout_cmap = LinearColormap(
+                colors=["green", "yellow", "orange", "red"],
+                vmin=0,
+                vmax=np.max(np.log10(self.fallout)),
+            )
+
+            folium.raster_layers.ImageOverlay(
+                image=np.log10(self.fallout),
+                bounds=bounds,
+                colormap=fallout_cmap,
+                opacity=0.5,
+                mercator_project=True,
+            ).add_to(m)
+
+            # Add a colorbar legend
+            fallout_cmap.add_to(m)
+            fallout_cmap.caption = "Radiation fallout, log10(rads)"
+
         # Display the map
         m.save("interactive_map.html")
 
         return m
 
 
-def calculate_distance_km(lat1, lon1, lat2, lon2):
+def calculate_distance_km(lat1, lon1, lat2, lon2, bearing=False):
     """
     Calculate the great circle distance between two points
     on the earth (specified in decimal degrees)
+
+    Args:
+        lat1 (float): latitude of the first point
+        lon1 (float): longitude of the first point
+        lat2 (float): latitude of the second point
+        lon2 (float): longitude of the second point
+        bearing (bool): if True, also return the bearing in degrees
+
+    Returns:
+        dist (float): the distance in km
+        bearing (float): the bearing in degrees (only if bearing is True)
     """
     point1 = (lat1, lon1)
     point2 = (lat2, lon2)
@@ -948,7 +1123,24 @@ def calculate_distance_km(lat1, lon1, lat2, lon2):
     # Calculate the distance
     dist = distance.distance(point1, point2).kilometers
 
-    return dist
+    if bearing:
+        # Calculate the initial bearing
+        lat1_rad = math.radians(lat1)
+        lat2_rad = math.radians(lat2)
+        diff_lon_rad = math.radians(lon2 - lon1)
+
+        x = math.sin(diff_lon_rad) * math.cos(lat2_rad)
+        y = math.cos(lat1_rad) * math.sin(lat2_rad) - math.sin(lat1_rad) * math.cos(
+            lat2_rad
+        ) * math.cos(diff_lon_rad)
+
+        initial_bearing = math.atan2(x, y)
+        initial_bearing = math.degrees(initial_bearing)
+        bearing = (initial_bearing + 360) % 360
+
+        return dist, bearing
+    else:
+        return dist
 
 
 def get_fatality_rate(
@@ -1112,8 +1304,9 @@ def calculate_reference_dose_contours(
 
 def interpolate_dose_rate(contours, downwind_distance, perpendicular_distance):
     """
-    Interpolate the dose rate at a given point based on the contours using 2D
-    interpolation in log space.
+    Determine the dose rate at a given point based on the rectangular contours.
+    For each contour (from highest dose rate to lowest), check if the point is inside
+    the rectangle defined by the downwind distance and max width.
 
     Args:
         contours (dict): Output from calculate_reference_dose_contours
@@ -1121,79 +1314,29 @@ def interpolate_dose_rate(contours, downwind_distance, perpendicular_distance):
         perpendicular_distance (float): Perpendicular distance from the downwind axis in km
 
     Returns:
-      float: Interpolated dose rate at the given point
+        float: Dose rate at the given point
     """
     # Handle negative downwind distance
     if downwind_distance < 0:
         return 0
 
-    # Check if we've already processed these contours
-    if not hasattr(interpolate_dose_rate, "cache"):
-        interpolate_dose_rate.cache = {}
+    # Sort the dose rates from highest to lowest
+    sorted_dose_rates = sorted(contours.keys(), reverse=True)
 
-    cache_key = id(contours)
-    if cache_key not in interpolate_dose_rate.cache:
-        dose_rates = np.array(list(contours.keys()))
-        downwind_distances = np.array(
-            [contours[rate]["downwind_distance"] for rate in dose_rates]
-        )
-        max_widths = np.array([contours[rate]["max_width"] for rate in dose_rates])
+    for dose_rate in sorted_dose_rates:
+        contour = contours[dose_rate]
+        downwind_limit = contour["downwind_distance"]
+        max_perp = contour["max_width"] / 2
 
-        # Create a grid of points for interpolation
-        grid_points = []
-        grid_values = []
+        # Check if the point is within the rectangle
+        if (
+            0 <= downwind_distance <= downwind_limit
+            and -max_perp <= perpendicular_distance <= max_perp
+        ):
+            return dose_rate
 
-        for i, rate in enumerate(dose_rates):
-            # Add points for each corner of the rectangle
-            grid_points.extend(
-                [
-                    [downwind_distances[i], max_widths[i] / 2],
-                    [downwind_distances[i], -max_widths[i] / 2],
-                    [0, max_widths[i] / 2],
-                    [0, -max_widths[i] / 2],
-                ]
-            )
-            log_rate = np.log10(rate)
-            grid_values.extend([log_rate, log_rate, log_rate, log_rate])
-
-        # Convert to numpy arrays
-        grid_points = np.array(grid_points)
-        grid_values = np.array(grid_values)
-        max_downwind = downwind_distances.max()
-        max_perpendicular = max_widths.max() / 2
-
-        interpolate_dose_rate.cache[cache_key] = {
-            "grid_points": grid_points,
-            "grid_values": grid_values,
-            "max_downwind": max_downwind,
-            "max_perpendicular": max_perpendicular,
-        }
-
-    else:
-        cached = interpolate_dose_rate.cache[cache_key]
-        grid_points = cached["grid_points"]
-        grid_values = cached["grid_values"]
-        max_downwind = cached["max_downwind"]
-        max_perpendicular = cached["max_perpendicular"]
-
-    # If the point is outside all contours, return 0
-    if downwind_distance > max_downwind or perpendicular_distance > max_perpendicular:
-        return 0
-
-    # Perform 2D interpolation in log space
-    interpolated_value = griddata(
-        grid_points,
-        grid_values,
-        [(downwind_distance, perpendicular_distance)],
-        method="linear",
-    )
-
-    # If the point is outside all contours, griddata returns nan
-    if np.isnan(interpolated_value):
-        return 0
-
-    # Convert back from log space
-    return 10 ** float(interpolated_value[0])
+    # If the point is not within any contour, return 0
+    return 0
 
 
 def calculate_total_dose(
@@ -1205,8 +1348,7 @@ def calculate_total_dose(
     fission_fraction=0.5,
 ):
     """
-    Calculate the total dose at a given point based on the contours using 2D
-    interpolation in log space.
+    Calculate the total dose at a given point based on the rectangular contours.
 
     Args:
         downwind_distance (float): Distance downwind from ground zero in km
@@ -1219,19 +1361,18 @@ def calculate_total_dose(
     Returns:
         float: Total dose at the given point in rads
     """
-
-    # Calculate distance from ground zero
-    d = np.sqrt(downwind_distance**2 + perpendicular_distance**2)
-
-    # Calculate t_a in hours, this is the time since the detonation, when
-    # fallout starts to be deposited
-    ta = d / windspeed  # hours
+    # Calculate time since detonation when fallout starts to be deposited
+    ta = downwind_distance / windspeed  # hours
 
     # Calculate reference dose contours
     contours = calculate_reference_dose_contours(yield_kt, windspeed, fission_fraction)
 
     # Interpolate dose rate
     r = interpolate_dose_rate(contours, downwind_distance, perpendicular_distance)
+
+    # If dose rate is zero, return zero dose
+    if r == 0:
+        return 0
 
     # Calculate total dose
     D = 5 * r * (ta**-0.2 - tb**-0.2)
@@ -1307,7 +1448,7 @@ def run_many_countries(
                 country.attack_random_non_overlapping(
                     arsenal, include_injuries=include_injuries
                 )
-            fatalities = country.get_total_fatalities()
+            fatalities = country.get_total_fatalities()[0]
             population_loss_pct = 100 * fatalities / country.population_intact.sum()
             print(
                 f"{country_name}, fatalities: {fatalities} ({population_loss_pct:.1f}%)"
@@ -1574,7 +1715,8 @@ def get_OPEN_RISOP_nuclear_war_plan():
         name = row["Name"]
         lat = row["Latitude"]
         lon = row["Longitude"]
-        targets[name] = (lat, lon)
+        hob = row["HOB (m)"]
+        targets[name] = (lat, lon, hob)
 
     return targets
 
@@ -1634,7 +1776,7 @@ def build_scaling_curve(
         )
         country.print_diagnostic_info()
 
-        fatalities = country.get_total_fatalities()
+        fatalities = country.get_total_fatalities()[0]
         industry_destroyed_pct = country.get_total_destroyed_industrial_area()
         soot_emissions = country.soot_Tg
         destroyed_custom_locations = country.get_number_destroyed_custom_locations()
