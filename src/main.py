@@ -15,6 +15,7 @@ import osmium
 import pandas as pd
 import pycountry
 import rasterio
+import scipy.sparse as sparse
 
 from branca.colormap import LinearColormap
 from geopy import distance
@@ -145,6 +146,7 @@ class Country:
         burn_radius_prescription="default",
         kill_radius_prescription="default",
         avoid_border_regions=False,
+        fallout_grid_factor=5,
     ):
         """
         Load the population data for the specified country
@@ -162,8 +164,11 @@ class Country:
             kill_radius_prescription (str): the method to calculate the kill radius ("Toon", "default", or "overpressure")
             avoid_border_regions (bool): if True, prohibit targets in regions close to the country's border, implemented
                 for the US-Mexico border.
+            fallout_grid_factor (int): the factor by which to refine the fallout grid
         """
         self.country_name = country_name
+        self.fallout_grid_factor = fallout_grid_factor
+
         # Load landscan data
         self.degrade_factor = degrade_factor
         if use_HD:
@@ -287,8 +292,16 @@ class Country:
         # This will be used to exclude regions from attack
         self.exclude = np.zeros(population_data_country.shape)
 
-        # This will be used to store the radiation fallout dose in rads
-        self.fallout = np.zeros(population_data_country.shape)
+        # Initialize the finer fallout grid as a sparse matrix
+        fallout_shape = (
+            self.data.shape[0] * self.fallout_grid_factor,
+            self.data.shape[1] * self.fallout_grid_factor,
+        )
+        self.fallout = sparse.lil_matrix(fallout_shape)
+
+        # Create finer latitude and longitude arrays for the fallout grid
+        self.fallout_lats = np.linspace(self.lats[0], self.lats[-1], fallout_shape[0])
+        self.fallout_lons = np.linspace(self.lons[0], self.lons[-1], fallout_shape[1])
 
         self.target_list = []
         self.fatalities = []
@@ -392,6 +405,7 @@ class Country:
         arsenal,
         include_injuries=False,
         non_overlapping=True,
+        airburst=True,
     ):
         """
         Attack the country by finding where to detonate a given number of warheads over the country's most populated region.
@@ -400,6 +414,7 @@ class Country:
         Args:
             arsenal (list): a list of the yield of the warheads in kt
             non_overlapping (bool): if True, prohibit overlapping targets as Toon et al.
+            airburst (bool): if True, use air bursts where we assume there is no radiation fallout
         """
         arsenal = sorted(arsenal, reverse=True)
         self.include_injuries = include_injuries
@@ -421,7 +436,9 @@ class Country:
         self.kilotonne = []
 
         for yield_kt in arsenal:
-            self.attack_next_most_populated_target(yield_kt, non_overlapping)
+            self.attack_next_most_populated_target(
+                yield_kt, non_overlapping, airburst=airburst
+            )
         return
 
     def attack_random_non_overlapping(self, arsenal, include_injuries=False):
@@ -447,13 +464,14 @@ class Country:
             self.attack_next_random_target(yield_kt)
         return
 
-    def attack_next_random_target(self, yield_kt):
+    def attack_next_random_target(self, yield_kt, airburst=True):
         """
         Attack a random location in the country that hasn't been hit yet.
         Uses air bursts where we assume there is no radiation fallout.
 
         Args:
             yield_kt (float): the yield of the warhead in kt
+            airburst (bool): if True, use air bursts where we assume there is no radiation fallout
         """
         # Create a mask to exclude previously hit targets
         valid_targets_mask = self.exclude == 0
@@ -469,7 +487,11 @@ class Country:
             random_target_lat = self.lats[random_target_index[0]]
             random_target_lon = self.lons[random_target_index[1]]
 
-            self.apply_destruction(random_target_lat, random_target_lon, yield_kt)
+            self.apply_destruction(
+                random_target_lat, random_target_lon, yield_kt, airburst=airburst
+            )
+            if not airburst:
+                self.add_fallout(random_target_lat, random_target_lon, yield_kt)
             self.target_list.append((random_target_lat, random_target_lon))
             self.kilotonne.append(yield_kt)
 
@@ -478,7 +500,9 @@ class Country:
             # No valid targets remaining
             return None, None
 
-    def attack_next_most_populated_target(self, yield_kt, non_overlapping=True):
+    def attack_next_most_populated_target(
+        self, yield_kt, non_overlapping=True, airburst=True
+    ):
         """
         Attack the next most populated region.
         Uses air bursts where we assume there is no radiation fallout.
@@ -486,6 +510,7 @@ class Country:
         Args:
             yield_kt (float): the yield of the warhead in kt
             non_overlapping (bool): if True, prohibit overlapping targets as Toon et al.
+            airburst (bool): if True, use air bursts where we assume there is no radiation fallout
         """
         # Create a mask to exclude previously hit targets
         valid_targets_mask = self.exclude == 0
@@ -505,8 +530,16 @@ class Country:
         max_population_lon = self.lons[max_population_index[1]]
 
         self.apply_destruction(
-            max_population_lat, max_population_lon, yield_kt, non_overlapping
+            max_population_lat,
+            max_population_lon,
+            yield_kt,
+            non_overlapping,
+            airburst=airburst,
         )
+
+        if not airburst:
+            self.add_fallout(max_population_lat, max_population_lon, yield_kt)
+
         self.target_list.append((max_population_lat, max_population_lon))
         self.kilotonne.append(yield_kt)
 
@@ -551,7 +584,7 @@ class Country:
         targets = get_OPEN_RISOP_nuclear_war_plan()
         for city, (lat, lon, hob) in targets.items():
             if hob == 0:
-                airburst = False    
+                airburst = False
             else:
                 airburst = True
             self.attack_specific_target(
@@ -589,7 +622,7 @@ class Country:
         actual_lat = lat + delta_lat
         actual_lon = lon + delta_lon
 
-        self.apply_destruction(actual_lat, actual_lon, yield_kt)
+        self.apply_destruction(actual_lat, actual_lon, yield_kt, airburst=airburst)
 
         if not airburst:
             self.add_fallout(actual_lat, actual_lon, yield_kt)
@@ -597,7 +630,7 @@ class Country:
         self.target_list.append((actual_lat, actual_lon))
         self.kilotonne.append(yield_kt)
 
-    def add_fallout(self, lat_groundzero, lon_groundzero, yield_kt, threshold_rads=10):
+    def add_fallout(self, lat_groundzero, lon_groundzero, yield_kt, threshold_rads=100):
         """
         Add fallout radiation dose to each pixel based on the ground zero location and weapon yield.
         Dynamically determines the area of significant radiation.
@@ -614,7 +647,6 @@ class Country:
         # Determine wind direction based on hemisphere
         hemisphere = "north" if lat_groundzero >= 0 else "south"
         wind_direction_deg = 90 if hemisphere == "north" else 270  # East or West
-        wind_direction_rad = math.radians(wind_direction_deg)
 
         # Function to find distance where radiation falls below threshold
         def find_threshold_distance(direction):
@@ -635,20 +667,19 @@ class Country:
 
         # Calculate lat/lon bounds
         km_per_degree_lat = 111.32  # Approximate
-        km_per_degree_lon = 111.32 * math.cos(math.radians(lat_groundzero))
+        km_per_degree_lon = 111.32 * np.cos(np.radians(lat_groundzero))
 
         lat_range = perpendicular_distance / km_per_degree_lat
         lon_range = downwind_distance / km_per_degree_lon
 
-        lat_min = max(lat_groundzero - lat_range, min(self.lats))
-        lat_max = min(lat_groundzero + lat_range, max(self.lats))
+        lat_min = max(lat_groundzero - lat_range, min(self.fallout_lats))
+        lat_max = min(lat_groundzero + lat_range, max(self.fallout_lats))
 
-        # Extend only in the wind direction
         if wind_direction_deg == 90:  # East wind
             lon_min = lon_groundzero
-            lon_max = min(lon_groundzero + lon_range, max(self.lons))
+            lon_max = min(lon_groundzero + lon_range, max(self.fallout_lons))
         else:  # West wind
-            lon_min = max(lon_groundzero - lon_range, min(self.lons))
+            lon_min = max(lon_groundzero - lon_range, min(self.fallout_lons))
             lon_max = lon_groundzero
 
         # Adjust longitudes to handle meridian crossing
@@ -657,28 +688,45 @@ class Country:
         if lon_min < -180:
             lon_min = lon_min + 360
 
+        # Get indices in the finer grid
+        lat_indices = np.where(
+            (self.fallout_lats >= lat_min) & (self.fallout_lats <= lat_max)
+        )[0]
+        lon_indices = np.where(
+            (self.fallout_lons >= lon_min) & (self.fallout_lons <= lon_max)
+        )[0]
+
         # Iterate over pixels within the defined range
-        for i, lat in enumerate(self.lats):
-            if lat_min <= lat <= lat_max:
-                for j, lon in enumerate(self.lons):
-                    if lon_min <= lon <= lon_max:
-                        distance, bearing = calculate_distance_km(
-                            lat_groundzero, lon_groundzero, lat, lon, bearing=True
-                        )
+        for i in lat_indices:
+            lat = self.fallout_lats[i]
+            for j in lon_indices:
+                lon = self.fallout_lons[j]
+                distance, bearing = calculate_distance_km(
+                    lat_groundzero, lon_groundzero, lat, lon, bearing=True
+                )
 
-                        angle_diff_rad = math.radians(bearing - wind_direction_deg)
-                        downwind_distance = distance * math.cos(angle_diff_rad)
-                        perpendicular_distance = distance * math.sin(angle_diff_rad)
+                angle_diff_rad = math.radians(bearing - wind_direction_deg)
+                downwind_distance = distance * math.cos(angle_diff_rad)
+                perpendicular_distance = distance * math.sin(angle_diff_rad)
 
-                        if downwind_distance > 0:
-                            dose = calculate_total_dose(
-                                downwind_distance=downwind_distance,
-                                perpendicular_distance=perpendicular_distance,
-                                yield_kt=yield_kt,
-                            )
+                # Patch to avoid "zero" bugs
+                if abs(downwind_distance) < 0.1:
+                    downwind_distance = 0.1
+                if perpendicular_distance > 0 and perpendicular_distance < 0.1:
+                    perpendicular_distance = 0.1
+                if perpendicular_distance > -0.1 and perpendicular_distance < 0:
+                    perpendicular_distance = -0.1
 
-                            # Add the calculated dose to the fallout array
-                            self.fallout[i, j] += dose
+                if downwind_distance > 0:
+                    dose = calculate_total_dose(
+                        downwind_distance=downwind_distance,
+                        perpendicular_distance=perpendicular_distance,
+                        yield_kt=yield_kt,
+                    )
+
+                    # Add the calculated dose to the fallout sparse matrix
+                    if dose > 0:
+                        self.fallout[i, j] += dose
 
         return
 
@@ -710,7 +758,9 @@ class Country:
             )
 
     @staticmethod
-    def calculate_kill_radius_scaling_factor(scaling_prescription, yield_kt):
+    def calculate_kill_radius_scaling_factor(
+        scaling_prescription, yield_kt, airburst=True
+    ):
         """
         Calculate the scaling factor for the kill radius. This is only
         really used to enforce the non-overlapping targets condition, the actual fatalities are
@@ -719,16 +769,21 @@ class Country:
         Args:
             scaling_prescription (str): The method to calculate the kill radius.
             yield_kt (float): The yield of the warhead in kt.
+            airburst (bool): True for air bursts, False for ground bursts; affects scaling factor
 
         Returns:
             float: The calculated scaling factor.
         """
+        if not airburst:  # see Toon et al. 2007 for sqrt(2) correction
+            corr = 1 / np.sqrt(2)
+        else:
+            corr = 1
         if scaling_prescription == "Toon":
-            return np.sqrt(yield_kt / 15)
+            return corr * np.sqrt(yield_kt / 15)
         elif scaling_prescription == "default":
-            return (yield_kt / 18) ** 0.38287688
+            return corr * (yield_kt / 18) ** 0.38287688
         elif scaling_prescription == "overpressure":
-            return (yield_kt / 18) ** 0.33333333
+            return corr * (yield_kt / 18) ** 0.33333333
         else:
             raise ValueError(f"Unknown scaling prescription: {scaling_prescription}")
 
@@ -738,6 +793,7 @@ class Country:
         lon_groundzero,
         yield_kt,
         non_overlapping=True,
+        airburst=True,
     ):
         """
         Removing the population from the specified location and the max_radius_kill km around it and
@@ -749,10 +805,11 @@ class Country:
             lon (float): the longitude of the target location
             yield_kt (float): the yield of the warhead in kt
             non_overlapping (bool): if True, prohibit overlapping targets as Toon et al.
+            airburst (bool): True for air bursts, False for ground bursts; affects scaling factors
         """
         # (1) Apply population loss and infrastructure destruction
         max_radius_kill = 3 * self.calculate_kill_radius_scaling_factor(
-            self.kill_radius_prescription, yield_kt
+            self.kill_radius_prescription, yield_kt, airburst=airburst
         )
         max_radius_burn = self.calculate_max_radius_burn(
             self.burn_radius_prescription, yield_kt
@@ -802,6 +859,7 @@ class Country:
                         yield_kt,
                         self.include_injuries,
                         self.kill_radius_prescription,
+                        airburst=airburst,
                     )
                     self.fatalities.append(fatality_rate * population_in_pixel)
                     self.hit[lat_idx_kill, lon_idx_kill] = 1
@@ -895,13 +953,14 @@ class Country:
         """
         immediate_fatalities = int(sum(self.fatalities))
 
-        # Calculate radiation fatalities
+        # Convert fallback fallout to COO format for easier iteration
+        fallout_coo = self.fallout.tocoo()
+
         radiation_fatalities = 0
-        for i in range(self.data.shape[0]):
-            for j in range(self.data.shape[1]):
-                radiation_dose = self.fallout[i, j]
-                fatality_rate = get_fatality_rate_fallout(radiation_dose)
-                radiation_fatalities += fatality_rate * self.data[i, j]
+        for i, j, radiation_dose in zip(fallout_coo.row, fallout_coo.col, fallout_coo.data):
+            fatality_rate = get_fatality_rate_fallout(radiation_dose)
+            population = self.data[i // self.fallout_grid_factor, j // self.fallout_grid_factor]
+            radiation_fatalities += fatality_rate * (population / self.fallout_grid_factor**2)
 
         radiation_fatalities = int(radiation_fatalities)
 
@@ -1076,15 +1135,16 @@ class Country:
                 [np.max(self.lats), np.max(self.lons)],
             ]
 
+            fallout_dense = self.fallout.toarray()
+
             # Create a custom colormap for fallout
             fallout_cmap = LinearColormap(
                 colors=["green", "yellow", "orange", "red"],
                 vmin=0,
-                vmax=np.max(np.log10(self.fallout)),
+                vmax=np.max(np.log10(fallout_dense)),
             )
-
             folium.raster_layers.ImageOverlay(
-                image=np.log10(self.fallout),
+                image=np.log10(fallout_dense),
                 bounds=bounds,
                 colormap=fallout_cmap,
                 opacity=0.5,
@@ -1148,6 +1208,7 @@ def get_fatality_rate(
     yield_kt,
     include_injuries=False,
     kill_radius_prescription="default",
+    airburst=True,
 ):
     """
     Calculates the fatality rate given the distance from the ground zero and the yield of the warhead in kt.
@@ -1170,7 +1231,7 @@ def get_fatality_rate(
     else:
         sigma0 = 1.15
     scaling_factor = Country.calculate_kill_radius_scaling_factor(
-        kill_radius_prescription, yield_kt
+        kill_radius_prescription, yield_kt, airburst=airburst
     )
     sigma = sigma0 * scaling_factor
     return np.exp(-(distance_from_groundzero**2) / (2 * sigma**2))
