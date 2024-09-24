@@ -1150,7 +1150,7 @@ class Country:
             fallout_cmap = LinearColormap(
                 colors=["green", "yellow", "orange", "red"],
                 vmin=0,
-                vmax=3000,
+                vmax=5000,
             )
             folium.raster_layers.ImageOverlay(
                 image=fallout_dense,
