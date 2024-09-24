@@ -587,7 +587,7 @@ class Country:
             else:
                 airburst = True
             self.attack_specific_target(
-                lat, lon, ykt, include_injuries=include_injuries, airburst=True
+                lat, lon, ykt, include_injuries=include_injuries, airburst=airburst
             )
         return
 
