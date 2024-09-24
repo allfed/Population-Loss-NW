@@ -633,8 +633,8 @@ class Country:
     def add_fallout(self, lat_groundzero, lon_groundzero, yield_kt, threshold_rads=100):
         """
         Add fallout radiation dose to each pixel based on the ground zero location and weapon yield.
-        Dynamically determines the area of significant radiation.
-        Wind is assumed to blow eastward in the northern hemisphere, and westward in the southern hemisphere.
+        Dynamically determines the area of significant radiation. Wind is assumed to blow eastward
+        in the northern hemisphere, and westward in the southern hemisphere.
 
         Args:
             lat_groundzero (float): Latitude of the ground zero.
@@ -684,9 +684,9 @@ class Country:
 
         # Adjust longitudes to handle meridian crossing
         if lon_max > 180:
-            lon_max = lon_max - 360
+            lon_max -= 360
         if lon_min < -180:
-            lon_min = lon_min + 360
+            lon_min += 360
 
         # Get indices in the finer grid
         lat_indices = np.where(
@@ -696,37 +696,47 @@ class Country:
             (self.fallout_lons >= lon_min) & (self.fallout_lons <= lon_max)
         )[0]
 
-        # Iterate over pixels within the defined range
-        for i in lat_indices:
-            lat = self.fallout_lats[i]
-            for j in lon_indices:
-                lon = self.fallout_lons[j]
-                distance, bearing = calculate_distance_km(
-                    lat_groundzero, lon_groundzero, lat, lon, bearing=True
-                )
+        # Create meshgrid of latitude and longitude indices
+        lat_mesh, lon_mesh = np.meshgrid(
+            self.fallout_lats[lat_indices],
+            self.fallout_lons[lon_indices],
+            indexing='ij'
+        )
 
-                angle_diff_rad = math.radians(bearing - wind_direction_deg)
-                downwind_distance = distance * math.cos(angle_diff_rad)
-                perpendicular_distance = distance * math.sin(angle_diff_rad)
+        # Compute distances and bearings using vectorized operations
+        distances, bearings = calculate_distance_km_vectorized(
+            lat_groundzero, lon_groundzero, lat_mesh, lon_mesh
+        )
 
-                # Patch to avoid "zero" bugs
-                if abs(downwind_distance) < 0.1:
-                    downwind_distance = 0.1
-                if perpendicular_distance > 0 and perpendicular_distance < 0.1:
-                    perpendicular_distance = 0.1
-                if perpendicular_distance > -0.1 and perpendicular_distance < 0:
-                    perpendicular_distance = -0.1
+        angle_diff_rad = np.radians(bearings - wind_direction_deg)
+        downwind_distances = distances * np.cos(angle_diff_rad)
+        perpendicular_distances = distances * np.sin(angle_diff_rad)
 
-                if downwind_distance > 0:
-                    dose = calculate_total_dose(
-                        downwind_distance=downwind_distance,
-                        perpendicular_distance=perpendicular_distance,
-                        yield_kt=yield_kt,
-                    )
+        # Patch to avoid "zero" bugs
+        downwind_distances[abs(downwind_distances) < 0.1] = 0.1
+        perpendicular_distances[
+            (perpendicular_distances > 0) & (perpendicular_distances < 0.1)
+        ] = 0.1
+        perpendicular_distances[
+            (perpendicular_distances < 0) & (perpendicular_distances > -0.1)
+        ] = -0.1
 
-                    # Add the calculated dose to the fallout sparse matrix
-                    if dose > 0:
-                        self.fallout[i, j] += dose
+        # Create a mask where downwind_distance > 0
+        mask = downwind_distances > 0
+
+        # Compute doses where downwind_distance is positive
+        doses = np.zeros_like(distances)
+        doses[mask] = calculate_total_dose(
+            downwind_distances[mask],
+            perpendicular_distances[mask],
+            yield_kt
+        )
+
+        # Add the calculated doses to the fallout sparse matrix
+        nonzero_indices = np.where(doses > 0)
+        i_indices = lat_indices[nonzero_indices[0]]
+        j_indices = lon_indices[nonzero_indices[1]]
+        self.fallout[i_indices, j_indices] += doses[nonzero_indices]
 
         return
 
@@ -1409,36 +1419,88 @@ def calculate_total_dose(
     fission_fraction=0.5,
 ):
     """
-    Calculate the total dose at a given point based on the rectangular contours.
+    Calculate the total dose at given points based on the rectangular contours.
 
     Args:
-        downwind_distance (float): Distance downwind from ground zero in km
-        perpendicular_distance (float): Perpendicular distance from the downwind axis in km
-        yield_kt (float): Yield of the weapon in kilotons
-        windspeed (float): Wind speed in km/h (default 24)
-        tb (float): Total time of dose integration in hours after the detonation (default 48)
-        fission_fraction (float): Fraction of energy from fission (default 0.5)
+        downwind_distance (ndarray): Distance downwind from ground zero in km.
+        perpendicular_distance (ndarray): Perpendicular distance from the downwind axis in km.
+        yield_kt (float): Yield of the weapon in kilotons.
+        windspeed (float): Wind speed in km/h (default 24).
+        tb (float): Total time of dose integration in hours after the detonation (default 48).
+        fission_fraction (float): Fraction of energy from fission (default 0.5).
 
     Returns:
-        float: Total dose at the given point in rads
+        ndarray: Total dose at the given points in rads.
     """
+    # Make sure downwind_distance and perpendicular_distance are numpy arrays
+    if not isinstance(downwind_distance, np.ndarray):
+        downwind_distance = np.array([downwind_distance])
+    if not isinstance(perpendicular_distance, np.ndarray):
+        perpendicular_distance = np.array([perpendicular_distance])
+
     # Calculate time since detonation when fallout starts to be deposited
     ta = downwind_distance / windspeed  # hours
 
     # Calculate reference dose contours
     contours = calculate_reference_dose_contours(yield_kt, windspeed, fission_fraction)
 
-    # Interpolate dose rate
-    r = interpolate_dose_rate(contours, downwind_distance, perpendicular_distance)
+    # Initialize dose rates array
+    dose_rates = np.zeros_like(downwind_distance)
+ 
+    # Iterate over dose rates and contours
+    for dose_rate, contour in contours.items():
+        downwind_limit = contour["downwind_distance"]
+        max_perp = contour["max_width"] / 2
 
-    # If dose rate is zero, return zero dose
-    if r == 0:
-        return 0
+        mask = (
+            (downwind_distance >= 0)
+            & (downwind_distance <= downwind_limit)
+            & (np.abs(perpendicular_distance) <= max_perp)
+            & (dose_rates == 0)
+        )
+        dose_rates[mask] = dose_rate
 
     # Calculate total dose
-    D = 5 * r * (ta**-0.2 - tb**-0.2)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        D = 5 * dose_rates * (ta**-0.2 - tb**-0.2)
+        D[ta >= tb] = 0  # No dose if fallout arrives after tb
+        D = np.maximum(D, 0)  # Ensure non-negative doses
 
     return D
+
+
+def calculate_distance_km_vectorized(lat1, lon1, lat2, lon2):
+    """
+    Calculate the great-circle distance and initial bearing between a single point and arrays of points.
+
+    Args:
+        lat1 (float): Latitude of the first point (scalar).
+        lon1 (float): Longitude of the first point (scalar).
+        lat2 (ndarray): Latitudes of the second points (array).
+        lon2 (ndarray): Longitudes of the second points (array).
+
+    Returns:
+        distances (ndarray): Distances in km between (lat1, lon1) and each point in (lat2, lon2).
+        bearings (ndarray): Initial bearings in degrees from (lat1, lon1) to each point in (lat2, lon2).
+    """
+    lat1_rad = np.radians(lat1)
+    lon1_rad = np.radians(lon1)
+    lat2_rad = np.radians(lat2)
+    lon2_rad = np.radians(lon2)
+
+    dlat = lat2_rad - lat1_rad
+    dlon = lon2_rad - lon1_rad
+
+    a = np.sin(dlat / 2.0)**2 + np.cos(lat1_rad) * np.cos(lat2_rad) * np.sin(dlon / 2.0)**2
+    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
+    distances = 6371.0 * c  # Earth radius in km
+
+    y = np.sin(dlon) * np.cos(lat2_rad)
+    x = np.cos(lat1_rad) * np.sin(lat2_rad) - np.sin(lat1_rad) * np.cos(lat2_rad) * np.cos(dlon)
+    initial_bearings_rad = np.arctan2(y, x)
+    initial_bearings_deg = (np.degrees(initial_bearings_rad) + 360) % 360
+
+    return distances, initial_bearings_deg
 
 
 def process_chunk(chunk, country, region_data_shape):
