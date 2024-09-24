@@ -565,12 +565,11 @@ class Country:
             )
         return
 
-    def apply_OPEN_RISOP_nuclear_war_plan(self, yield_kt, include_injuries=False):
+    def apply_OPEN_RISOP_nuclear_war_plan(self, include_injuries=False):
         """
         Attack all locations in the OPEN RISOP database. Only valid for the US.
 
         Args:
-            yield_kt (float): the yield of the warhead in kt
             include_injuries (bool): if True, include injuries in the fatality calculation
         """
         if self.country_name != "United States of America":
@@ -582,13 +581,13 @@ class Country:
         self.kilotonne = []
 
         targets = get_OPEN_RISOP_nuclear_war_plan()
-        for city, (lat, lon, hob) in targets.items():
+        for city, (lat, lon, hob, ykt) in targets.items():
             if hob == 0:
                 airburst = False
             else:
                 airburst = True
             self.attack_specific_target(
-                lat, lon, yield_kt, include_injuries=include_injuries, airburst=airburst
+                lat, lon, ykt, include_injuries=include_injuries, airburst=True
             )
         return
 
@@ -1151,10 +1150,10 @@ class Country:
             fallout_cmap = LinearColormap(
                 colors=["green", "yellow", "orange", "red"],
                 vmin=0,
-                vmax=np.max(np.log10(fallout_dense)),
+                vmax=3000,
             )
             folium.raster_layers.ImageOverlay(
-                image=np.log10(fallout_dense),
+                image=fallout_dense,
                 bounds=bounds,
                 colormap=fallout_cmap,
                 opacity=0.5,
@@ -1163,7 +1162,7 @@ class Country:
 
             # Add a colorbar legend
             fallout_cmap.add_to(m)
-            fallout_cmap.caption = "Radiation fallout, log10(rads)"
+            fallout_cmap.caption = "Radiation fallout, rads"
 
         # Display the map
         m.save("interactive_map.html")
@@ -1372,44 +1371,6 @@ def calculate_reference_dose_contours(
 
     return contours
 
-
-def interpolate_dose_rate(contours, downwind_distance, perpendicular_distance):
-    """
-    Determine the dose rate at a given point based on the rectangular contours.
-    For each contour (from highest dose rate to lowest), check if the point is inside
-    the rectangle defined by the downwind distance and max width.
-
-    Args:
-        contours (dict): Output from calculate_reference_dose_contours
-        downwind_distance (float): Distance downwind from ground zero in km
-        perpendicular_distance (float): Perpendicular distance from the downwind axis in km
-
-    Returns:
-        float: Dose rate at the given point
-    """
-    # Handle negative downwind distance
-    if downwind_distance < 0:
-        return 0
-
-    # Sort the dose rates from highest to lowest
-    sorted_dose_rates = sorted(contours.keys(), reverse=True)
-
-    for dose_rate in sorted_dose_rates:
-        contour = contours[dose_rate]
-        downwind_limit = contour["downwind_distance"]
-        max_perp = contour["max_width"] / 2
-
-        # Check if the point is within the rectangle
-        if (
-            0 <= downwind_distance <= downwind_limit
-            and -max_perp <= perpendicular_distance <= max_perp
-        ):
-            return dose_rate
-
-    # If the point is not within any contour, return 0
-    return 0
-
-
 def calculate_total_dose(
     downwind_distance,
     perpendicular_distance,
@@ -1419,7 +1380,7 @@ def calculate_total_dose(
     fission_fraction=0.5,
 ):
     """
-    Calculate the total dose at given points based on the rectangular contours.
+    Calculate the total radiation dose at given points based on elliptical contours.
 
     Args:
         downwind_distance (ndarray): Distance downwind from ground zero in km.
@@ -1445,20 +1406,29 @@ def calculate_total_dose(
     contours = calculate_reference_dose_contours(yield_kt, windspeed, fission_fraction)
 
     # Initialize dose rates array
-    dose_rates = np.zeros_like(downwind_distance)
- 
-    # Iterate over dose rates and contours
-    for dose_rate, contour in contours.items():
-        downwind_limit = contour["downwind_distance"]
-        max_perp = contour["max_width"] / 2
+    dose_rates = np.zeros_like(downwind_distance, dtype=float)
 
-        mask = (
-            (downwind_distance >= 0)
-            & (downwind_distance <= downwind_limit)
-            & (np.abs(perpendicular_distance) <= max_perp)
-            & (dose_rates == 0)
-        )
-        dose_rates[mask] = dose_rate
+    # Sort the dose rates from highest to lowest to prioritize higher doses
+    sorted_dose_rates = sorted(contours.keys(), reverse=True)
+
+    for dose_rate in sorted_dose_rates:
+        contour = contours[dose_rate]
+        downwind_total = contour["downwind_distance"]
+        max_width = contour["max_width"]
+
+        # Calculate semi-major and semi-minor axes
+        a = downwind_total / 2.0  # Semi-major axis (km)
+        b = max_width / 2.0        # Semi-minor axis (km)
+
+        # Center the ellipse at 0.5 * downwind_distance along the wind axis
+        # Shift downwind_distance by half the major axis to center the ellipse correctly
+        x_shifted = downwind_distance - (0.5 * downwind_total)
+
+        # Compute the elliptical condition
+        ellipse_condition = (x_shifted / a) ** 2 + (perpendicular_distance / b) ** 2 <= 1
+
+        # Assign dose rate where the condition is met and dose_rates is still zero
+        dose_rates = np.where(ellipse_condition & (dose_rates == 0), dose_rate, dose_rates)
 
     # Calculate total dose
     with np.errstate(divide='ignore', invalid='ignore'):
@@ -1839,7 +1809,8 @@ def get_OPEN_RISOP_nuclear_war_plan():
         lat = row["Latitude"]
         lon = row["Longitude"]
         hob = row["HOB (m)"]
-        targets[name] = (lat, lon, hob)
+        ykt = row["Yield (kt)"]
+        targets[name] = (lat, lon, hob, ykt)
 
     return targets
 
