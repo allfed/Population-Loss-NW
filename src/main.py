@@ -629,7 +629,7 @@ class Country:
         self.target_list.append((actual_lat, actual_lon))
         self.kilotonne.append(yield_kt)
 
-    def add_fallout(self, lat_groundzero, lon_groundzero, yield_kt, threshold_rads=100):
+    def add_fallout(self, lat_groundzero, lon_groundzero, yield_kt, threshold_rads=10):
         """
         Add fallout radiation dose to each pixel based on the ground zero location and weapon yield.
         Dynamically determines the area of significant radiation. Wind is assumed to blow eastward
@@ -1376,7 +1376,7 @@ def calculate_total_dose(
     perpendicular_distance,
     yield_kt,
     windspeed=24,
-    tb=48,
+    tb=96,
     fission_fraction=0.5,
 ):
     """
