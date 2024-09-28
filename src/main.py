@@ -297,7 +297,12 @@ class Country:
             self.data.shape[0] * self.fallout_grid_factor,
             self.data.shape[1] * self.fallout_grid_factor,
         )
+
+        # Used to store the radiation dose accumulated over some time (default is 4 days)
         self.fallout = sparse.lil_matrix(fallout_shape)
+
+        # Used to store the radiation dose rate a long time after the initial detonation (1 year is the default)
+        self.fallout_longterm = sparse.lil_matrix(fallout_shape)
 
         # Create finer latitude and longitude arrays for the fallout grid
         self.fallout_lats = np.linspace(self.lats[0], self.lats[-1], fallout_shape[0])
@@ -629,7 +634,14 @@ class Country:
         self.target_list.append((actual_lat, actual_lon))
         self.kilotonne.append(yield_kt)
 
-    def add_fallout(self, lat_groundzero, lon_groundzero, yield_kt, threshold_rads=10):
+    def add_fallout(
+        self,
+        lat_groundzero,
+        lon_groundzero,
+        yield_kt,
+        threshold_rads=10,
+        evaluate_longterm_dose_rate=True,
+    ):
         """
         Add fallout radiation dose to each pixel based on the ground zero location and weapon yield.
         Dynamically determines the area of significant radiation. Wind is assumed to blow eastward
@@ -642,6 +654,8 @@ class Country:
             threshold_rads (float): Radiation threshold in rads to determine significant area,
                 calculations are only performed in that region for efficiency. This should be small
                 enough so that even with many warheads, the dose will not exceed the lethal dose.
+            evaluate_longterm_dose_rate (bool): if True, evaluate the longterm dose rate, useful to
+                evaluate the exclusion area after the war
         """
         # Determine wind direction based on hemisphere
         hemisphere = "north" if lat_groundzero >= 0 else "south"
@@ -699,7 +713,7 @@ class Country:
         lat_mesh, lon_mesh = np.meshgrid(
             self.fallout_lats[lat_indices],
             self.fallout_lons[lon_indices],
-            indexing='ij'
+            indexing="ij",
         )
 
         # Compute distances and bearings using vectorized operations
@@ -726,9 +740,7 @@ class Country:
         # Compute doses where downwind_distance is positive
         doses = np.zeros_like(distances)
         doses[mask] = calculate_total_dose(
-            downwind_distances[mask],
-            perpendicular_distances[mask],
-            yield_kt
+            downwind_distances[mask], perpendicular_distances[mask], yield_kt
         )
 
         # Add the calculated doses to the fallout sparse matrix
@@ -736,6 +748,18 @@ class Country:
         i_indices = lat_indices[nonzero_indices[0]]
         j_indices = lon_indices[nonzero_indices[1]]
         self.fallout[i_indices, j_indices] += doses[nonzero_indices]
+
+        if evaluate_longterm_dose_rate:
+            longterm_dose_rate = np.zeros_like(distances)
+            longterm_dose_rate[mask] = calculate_longterm_dose_rate(
+                downwind_distances[mask], perpendicular_distances[mask], yield_kt
+            )
+            nonzero_indices = np.where(longterm_dose_rate > 0)
+            i_indices = lat_indices[nonzero_indices[0]]
+            j_indices = lon_indices[nonzero_indices[1]]
+            self.fallout_longterm[i_indices, j_indices] += longterm_dose_rate[
+                nonzero_indices
+            ]
 
         return
 
@@ -954,6 +978,41 @@ class Country:
 
         return
 
+    def calculate_contaminated_area(self, threshold=0.02):
+        """
+        Calculate the total land area where the long-term fallout exceeds a given threshold.
+
+        Args:
+            threshold (float): The threshold value for long-term fallout, in rads/hr. Default is 0.02.
+                The time at which this is evaluated depends on the settings for calculate_longterm_dose_rate,
+                but is 1 year after the attack by default.
+
+        Returns:
+            float: The total contaminated area in square kilometers.
+        """
+        # Convert fallout_longterm to dense array for easier processing
+        fallout_longterm_dense = self.fallout_longterm.toarray()
+
+        # Create a mask of areas exceeding the threshold
+        contaminated_mask = fallout_longterm_dense > threshold
+
+        # Calculate the area of each cell
+        # We'll use the haversine formula to calculate the area of each cell
+        contaminated_area = 0
+        for i in range(contaminated_mask.shape[0]):
+            for j in range(contaminated_mask.shape[1]):
+                if contaminated_mask[i, j]:
+                    # Calculate the corners of the cell
+                    lat1, lat2 = self.fallout_lats[i], self.fallout_lats[i + 1]
+                    lon1, lon2 = self.fallout_lons[j], self.fallout_lons[j + 1]
+
+                    # Calculate the area of the cell
+                    cell_area = calculate_cell_area(lat1, lon1, lat2, lon2)
+                    print(cell_area, lat1, lon1, lat2, lon2)
+                    contaminated_area += cell_area
+
+        return contaminated_area
+
     def get_total_fatalities(self):
         """
         Get the total fatalities, including both immediate fatalities from blast/fire/prompt radiation
@@ -966,10 +1025,16 @@ class Country:
         fallout_coo = self.fallout.tocoo()
 
         radiation_fatalities = 0
-        for i, j, radiation_dose in zip(fallout_coo.row, fallout_coo.col, fallout_coo.data):
+        for i, j, radiation_dose in zip(
+            fallout_coo.row, fallout_coo.col, fallout_coo.data
+        ):
             fatality_rate = get_fatality_rate_fallout(radiation_dose)
-            population = self.data[i // self.fallout_grid_factor, j // self.fallout_grid_factor]
-            radiation_fatalities += fatality_rate * (population / self.fallout_grid_factor**2)
+            population = self.data[
+                i // self.fallout_grid_factor, j // self.fallout_grid_factor
+            ]
+            radiation_fatalities += fatality_rate * (
+                population / self.fallout_grid_factor**2
+            )
 
         radiation_fatalities = int(radiation_fatalities)
 
@@ -1023,6 +1088,7 @@ class Country:
         show_industrial_areas=False,
         show_custom_locations=False,
         show_fallout=False,
+        show_fallout_longterm=False,
         ms=2,
     ):
         """
@@ -1032,7 +1098,8 @@ class Country:
             show_population_density (bool): if True, show the population density
             show_industrial_areas (bool): if True, show the industrial areas
             show_custom_locations (bool): if True, show the custom locations from data/custom-locations/*.csv
-            show_fallout (bool): if True, show the radiation fallout
+            show_fallout (bool): if True, show the total dose of radiation in each pixel after 4 days (default value)
+            show_fallout_longterm (bool): if True, show the dose rate of radiation 1 year after the detonation
             ms (float): the size of the markers
         """
 
@@ -1163,6 +1230,31 @@ class Country:
             # Add a colorbar legend
             fallout_cmap.add_to(m)
             fallout_cmap.caption = "Radiation fallout, rads"
+
+        if show_fallout_longterm:
+            bounds = [
+                [np.min(self.lats), np.min(self.lons)],
+                [np.max(self.lats), np.max(self.lons)],
+            ]
+
+            fallout_longterm_dense = self.fallout_longterm.toarray()
+
+            # Create a custom colormap for fallout
+            fallout_longterm_cmap = LinearColormap(
+                colors=["green", "yellow", "orange", "red"],
+                vmin=0,
+                vmax=0.02,
+            )
+            folium.raster_layers.ImageOverlay(
+                image=fallout_longterm_dense,
+                bounds=bounds,
+                colormap=fallout_longterm_cmap,
+                opacity=0.5,
+                mercator_project=True,
+            ).add_to(m)
+
+            fallout_longterm_cmap.add_to(m)
+            fallout_longterm_cmap.caption = "Radiation dose rate, rads/hr"
 
         # Display the map
         m.save("interactive_map.html")
@@ -1371,6 +1463,7 @@ def calculate_reference_dose_contours(
 
     return contours
 
+
 def calculate_total_dose(
     downwind_distance,
     perpendicular_distance,
@@ -1387,7 +1480,7 @@ def calculate_total_dose(
         perpendicular_distance (ndarray): Perpendicular distance from the downwind axis in km.
         yield_kt (float): Yield of the weapon in kilotons.
         windspeed (float): Wind speed in km/h (default 24).
-        tb (float): Total time of dose integration in hours after the detonation (default 48).
+        tb (float): Total time of dose integration in hours after the detonation (default 96).
         fission_fraction (float): Fraction of energy from fission (default 0.5).
 
     Returns:
@@ -1418,25 +1511,127 @@ def calculate_total_dose(
 
         # Calculate semi-major and semi-minor axes
         a = downwind_total / 2.0  # Semi-major axis (km)
-        b = max_width / 2.0        # Semi-minor axis (km)
+        b = max_width / 2.0  # Semi-minor axis (km)
 
         # Center the ellipse at 0.5 * downwind_distance along the wind axis
         # Shift downwind_distance by half the major axis to center the ellipse correctly
         x_shifted = downwind_distance - (0.5 * downwind_total)
 
         # Compute the elliptical condition
-        ellipse_condition = (x_shifted / a) ** 2 + (perpendicular_distance / b) ** 2 <= 1
+        ellipse_condition = (x_shifted / a) ** 2 + (
+            perpendicular_distance / b
+        ) ** 2 <= 1
 
         # Assign dose rate where the condition is met and dose_rates is still zero
-        dose_rates = np.where(ellipse_condition & (dose_rates == 0), dose_rate, dose_rates)
+        dose_rates = np.where(
+            ellipse_condition & (dose_rates == 0), dose_rate, dose_rates
+        )
 
     # Calculate total dose
-    with np.errstate(divide='ignore', invalid='ignore'):
+    with np.errstate(divide="ignore", invalid="ignore"):
         D = 5 * dose_rates * (ta**-0.2 - tb**-0.2)
         D[ta >= tb] = 0  # No dose if fallout arrives after tb
         D = np.maximum(D, 0)  # Ensure non-negative doses
 
     return D
+
+
+def calculate_longterm_dose_rate(
+    downwind_distance,
+    perpendicular_distance,
+    yield_kt,
+    windspeed=24,
+    tb=365 * 24,
+    fission_fraction=0.5,
+):
+    """
+    Calculate the radiation dose rate at a given point after a long time tb
+    Used to evaluate the exclusion zone around a nuclear weapon detonation
+
+    Args:
+        downwind_distance (ndarray): Distance downwind from ground zero in km.
+        perpendicular_distance (ndarray): Perpendicular distance from the downwind axis in km.
+        yield_kt (float): Yield of the weapon in kilotons.
+        windspeed (float): Wind speed in km/h (default 24).
+        tb (float): Number of hours after detonation when the dose rate is calculated (default is 1 year)
+        fission_fraction (float): Fraction of energy from fission (default 0.5).
+
+    Returns:
+        ndarray: Radiation dose rate in rads/hr
+    """
+    # Make sure downwind_distance and perpendicular_distance are numpy arrays
+    if not isinstance(downwind_distance, np.ndarray):
+        downwind_distance = np.array([downwind_distance])
+    if not isinstance(perpendicular_distance, np.ndarray):
+        perpendicular_distance = np.array([perpendicular_distance])
+
+    # Calculate reference dose contours
+    contours = calculate_reference_dose_contours(yield_kt, windspeed, fission_fraction)
+
+    # Initialize dose rates array
+    dose_rates = np.zeros_like(downwind_distance, dtype=float)
+
+    # Sort the dose rates from highest to lowest to prioritize higher doses
+    sorted_dose_rates = sorted(contours.keys(), reverse=True)
+
+    for dose_rate in sorted_dose_rates:
+        contour = contours[dose_rate]
+        downwind_total = contour["downwind_distance"]
+        max_width = contour["max_width"]
+
+        # Calculate semi-major and semi-minor axes
+        a = downwind_total / 2.0  # Semi-major axis (km)
+        b = max_width / 2.0  # Semi-minor axis (km)
+
+        # Center the ellipse at 0.5 * downwind_distance along the wind axis
+        # Shift downwind_distance by half the major axis to center the ellipse correctly
+        x_shifted = downwind_distance - (0.5 * downwind_total)
+
+        # Compute the elliptical condition
+        ellipse_condition = (x_shifted / a) ** 2 + (
+            perpendicular_distance / b
+        ) ** 2 <= 1
+
+        # Assign dose rate where the condition is met and dose_rates is still zero
+        dose_rates = np.where(
+            ellipse_condition & (dose_rates == 0), dose_rate, dose_rates
+        )
+
+    # Calculate total dose
+    with np.errstate(divide="ignore", invalid="ignore"):
+        longterm_dose_rate = dose_rates * tb**-1.2
+
+    return longterm_dose_rate
+
+def calculate_cell_area(lat1, lon1, lat2, lon2):
+    """
+    Calculate the approximate area of a rectangular cell defined by two latitude and longitude pairs.
+
+    Args:
+        lat1 (float): Latitude of the first corner (degrees).
+        lon1 (float): Longitude of the first corner (degrees).
+        lat2 (float): Latitude of the opposite corner (degrees).
+        lon2 (float): Longitude of the opposite corner (degrees).
+
+    Returns:
+        float: The area of the cell in square kilometers.
+    """
+    R = 6371.0  # Earth's radius in kilometers
+
+    # Convert degrees to radians
+    lat1_rad, lon1_rad = np.radians([lat1, lon1])
+    lat2_rad, lon2_rad = np.radians([lat2, lon2])
+
+    # Calculate the absolute difference in longitude
+    delta_lambda = abs(lon2_rad - lon1_rad)
+
+    # Calculate the absolute difference in the sine of latitudes
+    delta_phi = abs(np.sin(lat2_rad) - np.sin(lat1_rad))
+
+    # Calculate the area using the spherical excess formula
+    area = R**2 * delta_lambda * delta_phi
+
+    return area
 
 
 def calculate_distance_km_vectorized(lat1, lon1, lat2, lon2):
@@ -1461,12 +1656,17 @@ def calculate_distance_km_vectorized(lat1, lon1, lat2, lon2):
     dlat = lat2_rad - lat1_rad
     dlon = lon2_rad - lon1_rad
 
-    a = np.sin(dlat / 2.0)**2 + np.cos(lat1_rad) * np.cos(lat2_rad) * np.sin(dlon / 2.0)**2
+    a = (
+        np.sin(dlat / 2.0) ** 2
+        + np.cos(lat1_rad) * np.cos(lat2_rad) * np.sin(dlon / 2.0) ** 2
+    )
     c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
     distances = 6371.0 * c  # Earth radius in km
 
     y = np.sin(dlon) * np.cos(lat2_rad)
-    x = np.cos(lat1_rad) * np.sin(lat2_rad) - np.sin(lat1_rad) * np.cos(lat2_rad) * np.cos(dlon)
+    x = np.cos(lat1_rad) * np.sin(lat2_rad) - np.sin(lat1_rad) * np.cos(
+        lat2_rad
+    ) * np.cos(dlon)
     initial_bearings_rad = np.arctan2(y, x)
     initial_bearings_deg = (np.degrees(initial_bearings_rad) + 360) % 360
 
