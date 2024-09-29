@@ -978,12 +978,12 @@ class Country:
 
         return
 
-    def calculate_contaminated_area(self, threshold=0.02):
+    def calculate_contaminated_area(self, threshold=0.002):
         """
         Calculate the total land area where the long-term fallout exceeds a given threshold.
 
         Args:
-            threshold (float): The threshold value for long-term fallout, in rads/hr. Default is 0.02.
+            threshold (float): The threshold value for long-term fallout, in rads/hr. Default is 0.002.
                 The time at which this is evaluated depends on the settings for calculate_longterm_dose_rate,
                 but is 1 year after the attack by default.
 
@@ -1243,7 +1243,7 @@ class Country:
             fallout_longterm_cmap = LinearColormap(
                 colors=["green", "yellow", "orange", "red"],
                 vmin=0,
-                vmax=0.02,
+                vmax=0.002,
             )
             folium.raster_layers.ImageOverlay(
                 image=fallout_longterm_dense,
