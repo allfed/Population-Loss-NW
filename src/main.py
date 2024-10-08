@@ -578,6 +578,7 @@ class Country:
         ignore_war_supporting=False,
         ignore_critical=False,
         ignore_other_civilian=False,
+        icbm_only=False,
     ):
         """
         Attack all locations in the OPEN RISOP database. Only valid for the US.
@@ -589,6 +590,7 @@ class Country:
             ignore_war_supporting (bool): if True, ignore war-supporting industry targets
             ignore_critical (bool): if True, ignore critical infrastructure targets
             ignore_other_civilian (bool): if True, ignore other civilian targets
+            icbm_only (bool): if True, only attack ICBM targets
         """
         if self.country_name != "United States of America":
             raise ValueError("OPEN RISOP nuclear war plan only valid for the US")
@@ -604,6 +606,7 @@ class Country:
             ignore_war_supporting=ignore_war_supporting,
             ignore_critical=ignore_critical,
             ignore_other_civilian=ignore_other_civilian,
+            icbm_only=icbm_only,
         )
         for city, (lat, lon, hob, ykt) in targets.items():
             if hob == 0:
@@ -614,6 +617,7 @@ class Country:
                 lat, lon, ykt, include_injuries=include_injuries, airburst=airburst
             )
         return
+
     def attack_specific_target(
         self, lat, lon, yield_kt, CEP=0, include_injuries=False, airburst=True
     ):
@@ -949,9 +953,17 @@ class Country:
                             * 111.32
                             * np.cos(np.radians(lat_pixel))
                         )
-                        soot_emissions_in_pixel = (
-                            area_in_pixel * 1.3e5 + population_in_pixel * 1.8e2
-                        )  # kg soot per pixel, from Toon et al. 2008
+
+                        # The threshold for a firestorm is 4 g/cm² of fuel loading
+                        if (1.1e4 * population_in_pixel + 8e6 * area_in_pixel)/area_in_pixel > 4e7:
+                            firestorm = True
+                        else:
+                            firestorm = False
+
+                        if firestorm:
+                            soot_emissions_in_pixel = (
+                                area_in_pixel * 1.3e5 + population_in_pixel * 1.8e2
+                            )  # kg soot per pixel, from Toon et al. 2008
 
                         self.soot_Tg += soot_emissions_in_pixel * 1e-9
 
@@ -2035,9 +2047,7 @@ def get_OPEN_RISOP_nuclear_war_plan(
     )
 
     # Read the CSV file
-    df2 = pd.read_csv(
-        "../data/target-lists/OPEN-RISOP 1.00 TARGET DATABASE.csv"
-    )
+    df2 = pd.read_csv("../data/target-lists/OPEN-RISOP 1.00 TARGET DATABASE.csv")
 
     # Merge the dataframes
     # Function to find the closest match based on latitude and longitude
@@ -2166,7 +2176,7 @@ def get_OPEN_RISOP_nuclear_war_plan(
         ):
             continue
 
-        if icbm_only and subclass!="ICBM SILOS":
+        if icbm_only and subclass != "ICBM SILOS":
             continue
 
         targets[name] = (lat, lon, hob, ykt)
