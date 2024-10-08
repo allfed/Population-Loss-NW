@@ -570,12 +570,25 @@ class Country:
             )
         return
 
-    def apply_OPEN_RISOP_nuclear_war_plan(self, include_injuries=False):
+    def apply_OPEN_RISOP_nuclear_war_plan(
+        self,
+        include_injuries=False,
+        ignore_military=False,
+        ignore_dual_use=False,
+        ignore_war_supporting=False,
+        ignore_critical=False,
+        ignore_other_civilian=False,
+    ):
         """
         Attack all locations in the OPEN RISOP database. Only valid for the US.
 
         Args:
             include_injuries (bool): if True, include injuries in the fatality calculation
+            ignore_military (bool): if True, ignore military targets
+            ignore_dual_use (bool): if True, ignore dual-use targets
+            ignore_war_supporting (bool): if True, ignore war-supporting industry targets
+            ignore_critical (bool): if True, ignore critical infrastructure targets
+            ignore_other_civilian (bool): if True, ignore other civilian targets
         """
         if self.country_name != "United States of America":
             raise ValueError("OPEN RISOP nuclear war plan only valid for the US")
@@ -585,7 +598,13 @@ class Country:
         self.fatalities = []
         self.kilotonne = []
 
-        targets = get_OPEN_RISOP_nuclear_war_plan()
+        targets = get_OPEN_RISOP_nuclear_war_plan(
+            ignore_military=ignore_military,
+            ignore_dual_use=ignore_dual_use,
+            ignore_war_supporting=ignore_war_supporting,
+            ignore_critical=ignore_critical,
+            ignore_other_civilian=ignore_other_civilian,
+        )
         for city, (lat, lon, hob, ykt) in targets.items():
             if hob == 0:
                 airburst = False
@@ -595,7 +614,6 @@ class Country:
                 lat, lon, ykt, include_injuries=include_injuries, airburst=airburst
             )
         return
-
     def attack_specific_target(
         self, lat, lon, yield_kt, CEP=0, include_injuries=False, airburst=True
     ):
@@ -2017,7 +2035,7 @@ def get_OPEN_RISOP_nuclear_war_plan(
 
     # Read the CSV file
     df2 = pd.read_csv(
-        "../data/target-lists/OPEN-RISOP 1.00 MIXED COUNTERFORCE+COUNTERVALUE ATTACK.csv"
+        "../data/target-lists/OPEN-RISOP 1.00 TARGET DATABASE.csv"
     )
 
     # Merge the dataframes
@@ -2147,7 +2165,7 @@ def get_OPEN_RISOP_nuclear_war_plan(
         ):
             continue
 
-        targets[name] = (lat, lon, hob, ykt, category)
+        targets[name] = (lat, lon, hob, ykt)
         total_yield += ykt
 
     print(f"Total yield: {total_yield} kt")
