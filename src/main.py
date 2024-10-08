@@ -2013,6 +2013,7 @@ def get_OPEN_RISOP_nuclear_war_plan(
     ignore_war_supporting=False,
     ignore_critical=False,
     ignore_other_civilian=False,
+    icbm_only=False,
 ):
     """
     Get the nuclear war plan from the OPEN RISOP database
@@ -2023,7 +2024,7 @@ def get_OPEN_RISOP_nuclear_war_plan(
         ignore_war_supporting (bool): If True, ignore war-supporting industry targets
         ignore_critical (bool): If True, ignore critical infrastructure targets
         ignore_other_civilian (bool): If True, ignore other civilian targets
-
+        icbm_only (bool): If True, only include ICBM targets
     Returns:
         dict: A dictionary of targets with names as keys and tuples of
                 (latitude, longitude, hob, yield, category) as values.
@@ -2085,7 +2086,7 @@ def get_OPEN_RISOP_nuclear_war_plan(
         "STATE AREA HQ",
     ]
     war_supporting_industries = [
-        "DEFENCE INDUSTRIAL BASE",
+        "DEFENSE INDUSTRIAL BASE",
         "OIL REFINERIES",
         "STEEL PRODUCTION",
         "CHEMICAL MANUFACTURING",
@@ -2163,6 +2164,9 @@ def get_OPEN_RISOP_nuclear_war_plan(
             or (ignore_critical and category == "Critical")
             or (ignore_other_civilian and category == "Other Civilian")
         ):
+            continue
+
+        if icbm_only and subclass!="ICBM SILOS":
             continue
 
         targets[name] = (lat, lon, hob, ykt)
