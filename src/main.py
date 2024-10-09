@@ -964,8 +964,12 @@ class Country:
                             soot_emissions_in_pixel = (
                                 area_in_pixel * 1.3e5 + population_in_pixel * 1.8e2
                             )  # kg soot per pixel, from Toon et al. 2008
+                        else:
+                            soot_emissions_in_pixel = 0.0
 
-                        self.soot_Tg += soot_emissions_in_pixel * 1e-9
+                        # We divide by 2 because we assume that on average half of locations that
+                        # can firestorm will actually do so
+                        self.soot_Tg += soot_emissions_in_pixel * 1e-9 / 2.0
 
                     # Check for destroyed custom locations
                     for _, row in self.custom_locations.iterrows():
