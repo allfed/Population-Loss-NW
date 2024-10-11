@@ -28,7 +28,7 @@ In addition, industrial zones can be shown in purple or brown if they are burned
 
 ![200 100-kt strikes on Germany](images/germany-50-100kt-example-industry.png) 
 
-Finally, we also calculate the amount of soot emissions in Tg as in [Toon et al. 2008](https://pubs.aip.org/physicstoday/article/61/12/37/393240/Environmental-consequences-of-nuclear-warA).
+Finally, we also calculate the amount of soot emissions in Tg. We use the same relation as [Toon et al. 2008](https://pubs.aip.org/physicstoday/article/61/12/37/393240/Environmental-consequences-of-nuclear-warA) to calculate the amount of soot emitted in a given pixel. However, we also add the condition that a firestorm only occurs if the fuel loading is above 4 g/cm². If a pixel is below this threshold, there is no firestorm and therefore no injection of soot in the stratosphere. Also, we assume that only half of locations that can firestorm based on this single criterion will actually firestorm (this is based on the fact that Hiroshima firestormed but not Nagasaki).
 
 Note that other targeting options are also supported. Currently, there is an option for following the [OPEN-RISOP](https://github.com/davidteter/OPEN-RISOP/tree/main/TARGET%20LAYDOWNS) target list for the US, and an option for following the [declassified 1956 US target list](https://futureoflife.org/resource/us-nuclear-targets/) for Russia and China.
 
