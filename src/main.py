@@ -925,12 +925,17 @@ class Country:
                 if (lon_pixel - lon_groundzero) ** 2 / delta_lon_burn**2 + (
                     lat_pixel - lat_groundzero
                 ) ** 2 / delta_lat_burn**2 <= 1:
-                    # destroy infrastructure
+                    # apply burn
                     distance_from_groundzero = calculate_distance_km(
                         lat_pixel, lon_pixel, lat_groundzero, lon_groundzero
                     )
-                    if distance_from_groundzero <= max_radius_burn:
-                        self.hit[lat_idx_kill, lon_idx_kill] = 2
+                    # only burn if within burn radius and not already burned
+                    if (
+                        distance_from_groundzero <= max_radius_burn
+                        and self.hit[lat_idx_kill, lon_idx_kill] != 2
+                    ):
+                        self.hit[lat_idx_kill, lon_idx_kill] = 2  # mark as burned
+                        # check if any industry is in the pixel
                         pixel_box = box(
                             lon_pixel - pixel_width / 2,
                             lat_pixel - pixel_height / 2,
@@ -955,7 +960,9 @@ class Country:
                         )
 
                         # The threshold for a firestorm is 4 g/cm² of fuel loading
-                        if (1.1e4 * population_in_pixel + 8e6 * area_in_pixel)/area_in_pixel > 4e7:
+                        if (
+                            1.1e4 * population_in_pixel + 8e6 * area_in_pixel
+                        ) / area_in_pixel > 4e7:
                             firestorm = True
                         else:
                             firestorm = False
