@@ -25,7 +25,6 @@ from scipy.ndimage import convolve
 from shapely.geometry import box, Polygon
 from skimage.measure import block_reduce
 
-
 # Suppress FutureWarning
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
@@ -233,6 +232,13 @@ class Country:
             max_lat_idx = np.argmin(np.abs(lats + 46))
             min_lon_idx = np.argmin(np.abs(lons - 165))
             max_lon_idx = np.argmin(np.abs(lons - 178))
+
+        # For the Netherlands, only include European territories
+        if country_name == "Netherlands":
+            min_lat_idx = np.argmin(np.abs(lats - 54))
+            max_lat_idx = np.argmin(np.abs(lats - 50))
+            min_lon_idx = np.argmin(np.abs(lons - 2))
+            max_lon_idx = np.argmin(np.abs(lons - 8))
 
         # Extract the data for the region
         region_data = landscan.data[
@@ -1120,6 +1126,161 @@ class Country:
             f"Total destroyed industrial area: {100*self.get_total_destroyed_industrial_area():.1f}%"
         )
         print(f"Soot emissions: {self.soot_Tg:.1f} Tg")
+
+    def plot_publication_quality_map(
+        self,
+        show_burn_regions=True,
+        show_industrial_areas=True,
+        output_path="publication_map.png",
+        dpi=300,
+        figsize=(12, 12),
+        lat_range=0.2,
+        lon_range=0.5,
+    ):
+        """
+        Create a publication-quality map with burn regions and industrial areas using contextily for detailed basemap.
+
+        Args:
+            show_burn_regions (bool): If True, show the burn regions
+            show_industrial_areas (bool): If True, show the industrial areas
+            output_path (str): Path to save the output image
+            dpi (int): Dots per inch for the output image
+            figsize (tuple): Figure size in inches (width, height)
+            lat_range (float): Latitude range in degrees
+            lon_range (float): Longitude range in degrees
+        """
+        import contextily as ctx
+        from matplotlib_scalebar.scalebar import ScaleBar
+
+        # Calculate the center of the map based on target locations
+        target_lats, target_lons = zip(*self.target_list)
+        center_lat = sum(target_lats) / len(target_lats)
+        center_lon = sum(target_lons) / len(target_lons)
+
+        # Create a GeoDataFrame for the map extent
+        extent = gpd.GeoDataFrame(
+            geometry=[
+                Polygon(
+                    [
+                        (center_lon - lon_range / 2, center_lat - lat_range / 2),
+                        (center_lon + lon_range / 2, center_lat - lat_range / 2),
+                        (center_lon + lon_range / 2, center_lat + lat_range / 2),
+                        (center_lon - lon_range / 2, center_lat + lat_range / 2),
+                        (center_lon - lon_range / 2, center_lat - lat_range / 2),
+                    ]
+                )
+            ],
+            crs="EPSG:4326",
+        )
+        extent = extent.to_crs(epsg=3857)  # Web Mercator projection
+
+        # Create the figure and axis
+        fig, ax = plt.subplots(figsize=figsize)
+
+        # Plot the extent and get the bounds
+        extent.plot(ax=ax, alpha=0)
+        bounds = extent.total_bounds
+
+        # Set the axis limits explicitly
+        ax.set_xlim(bounds[0], bounds[2])
+        ax.set_ylim(bounds[1], bounds[3])
+
+        # Add the contextily basemap
+        ctx.add_basemap(
+            ax,
+            source=ctx.providers.CartoDB.Positron,
+            zoom="auto",
+            crs=extent.crs.to_string(),
+        )
+
+        if show_industrial_areas:
+            # Convert industrial areas to Web Mercator
+            industrial_areas = self.industry.to_crs(epsg=3857)
+            # Plot intact industrial areas
+            intact_areas = industrial_areas[~industrial_areas.index.isin(self.destroyed_industrial_areas)]
+            if not intact_areas.empty:
+                intact_areas.plot(
+                    ax=ax,
+                    facecolor='none',
+                    edgecolor='purple',
+                    alpha=0.5,
+                    linewidth=0.5
+                )
+            
+            # Plot destroyed industrial areas with hatching
+            destroyed_areas = industrial_areas[industrial_areas.index.isin(self.destroyed_industrial_areas)]
+            if not destroyed_areas.empty:
+                destroyed_areas.plot(
+                    ax=ax,
+                    facecolor='none',
+                    edgecolor='brown',
+                    alpha=0.5,
+                    linewidth=0.5,
+                    hatch='///'  # Add diagonal hatching
+                )
+
+        if show_burn_regions:
+            for lat, lon, yield_kt in zip(target_lats, target_lons, self.kilotonne):
+                # Calculate burn radius in km
+                radius_km = self.calculate_max_radius_burn(self.burn_radius_prescription, yield_kt)
+                
+                # Create a circle in EPSG:4326 (lat/lon)
+                circle_points = []
+                for angle in range(0, 360, 5):  # Create points every 5 degrees
+                    # Calculate the point at radius_km distance and given angle
+                    point = distance.distance(kilometers=radius_km).destination(
+                        (lat, lon), 
+                        bearing=angle
+                    )
+                    circle_points.append((point.longitude, point.latitude))
+                
+                # Close the circle
+                circle_points.append(circle_points[0])
+                
+                # Create a GeoDataFrame with the circle
+                circle_gdf = gpd.GeoDataFrame(
+                    geometry=[Polygon(circle_points)],
+                    crs="EPSG:4326"
+                )
+                
+                # Project to Web Mercator
+                circle_gdf = circle_gdf.to_crs(epsg=3857)
+                
+                # Plot the circle
+                circle_gdf.plot(
+                    ax=ax,
+                    facecolor='none',
+                    edgecolor='red',
+                    linewidth=1.0
+                )
+
+        # Add a scale bar
+        scale_factor = np.cos(np.radians(center_lat))
+        scalebar = ScaleBar(scale_factor, location='lower right', units='m', dimension='si-length', frameon=False,font_properties={'size': 14})
+        ax.add_artist(scalebar)
+
+        # Add a north arrow
+        x, y, arrow_length = 0.95, 0.95, 0.10
+        ax.annotate(
+            "N",
+            xy=(x, y),
+            xytext=(x, y - arrow_length),
+            arrowprops=dict(facecolor="black", width=1, headwidth=6),
+            ha="center",
+            va="center",
+            fontsize=18,
+            xycoords=ax.transAxes,
+            color="black",
+        )
+
+        # Remove axis
+        ax.set_axis_off()
+
+        # Save the figure with tight layout
+        plt.savefig(output_path, dpi=dpi, bbox_inches="tight", pad_inches=0.1)
+        plt.close()
+
+        print(f"Publication-quality map saved to {output_path}")
 
     def plot(
         self,
