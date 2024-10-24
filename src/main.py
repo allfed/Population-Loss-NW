@@ -1136,6 +1136,8 @@ class Country:
         figsize=(12, 12),
         lat_range=0.2,
         lon_range=0.5,
+        center_lat=None,
+        center_lon=None,
     ):
         """
         Create a publication-quality map with burn regions and industrial areas using contextily for detailed basemap.
@@ -1148,14 +1150,17 @@ class Country:
             figsize (tuple): Figure size in inches (width, height)
             lat_range (float): Latitude range in degrees
             lon_range (float): Longitude range in degrees
+            center_lat (float, optional): Central latitude for the map. If None, it will be calculated from target locations.
+            center_lon (float, optional): Central longitude for the map. If None, it will be calculated from target locations.
         """
         import contextily as ctx
         from matplotlib_scalebar.scalebar import ScaleBar
 
-        # Calculate the center of the map based on target locations
+        # Calculate the center of the map based on target locations if not provided
         target_lats, target_lons = zip(*self.target_list)
-        center_lat = sum(target_lats) / len(target_lats)
-        center_lon = sum(target_lons) / len(target_lons)
+        if center_lat is None or center_lon is None:
+            center_lat = sum(target_lats) / len(target_lats)
+            center_lon = sum(target_lons) / len(target_lons)
 
         # Create a GeoDataFrame for the map extent
         extent = gpd.GeoDataFrame(
