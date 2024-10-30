@@ -427,18 +427,18 @@ def calculate_world_industry_loss(total_industry_loss, sector_losses):
         dict: Updated sector losses for the whole world (%)
     """
     # Load the industrial GDP data
-    industry_gdp = pd.read_csv("../data/industry-sectors/industry-PPP.csv")
+    industry_gdp = pd.read_csv("../data/industry-sectors/GDP-PPP.csv")
 
     # Initialize total loss
     total_loss = 0
 
     # Calculate the total world industrial GDP
-    total_world_gdp_industry = industry_gdp["Industrial_GDP_PPP_USD_M"].sum()
+    total_world_gdp_industry = industry_gdp["industry_GDP_PPP"].sum()
 
     # Calculate the total loss of industrial capacity
     for country, loss_percentage in total_industry_loss.items():
         if country in industry_gdp["iso3"].values:
-            country_gdp = industry_gdp[industry_gdp["iso3"] == country]["Industrial_GDP_PPP_USD_M"].iloc[0]
+            country_gdp = industry_gdp[industry_gdp["iso3"] == country]["industry_GDP_PPP"].iloc[0]
             weighted_loss = (loss_percentage * country_gdp) / total_world_gdp_industry
             total_loss += weighted_loss
         else:
