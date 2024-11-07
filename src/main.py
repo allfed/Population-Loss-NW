@@ -1090,13 +1090,21 @@ class Country:
 
     def get_total_destroyed_industrial_area(self):
         """
-        Get the total destroyed industrial area as a fraction of the country's total industrial area
+        Get the total destroyed industrial area as a fraction of the country's total industrial area.
+        Excludes polygons larger than 10 km² which are typically quarries or proving grounds.
         """
         self.destroyed_industrial_areas = list(set(self.destroyed_industrial_areas))
-        destroyed_area = self.industry_equal_area[
-            self.industry_equal_area.index.isin(self.destroyed_industrial_areas)
+        
+        # Filter out large polygons (>10 km²) from both numerator and denominator
+        small_polygons = self.industry_equal_area[self.industry_equal_area.geometry.area <= 1e7]
+        
+        destroyed_area = small_polygons[
+            small_polygons.index.isin(self.destroyed_industrial_areas)
         ].geometry.area.sum()
-        return destroyed_area / self.total_industry_area
+        
+        total_area = small_polygons.geometry.area.sum()
+        
+        return destroyed_area / total_area if total_area > 0 else 0
 
     def get_fraction_destroyed_industrial_polygons(self):
         """
