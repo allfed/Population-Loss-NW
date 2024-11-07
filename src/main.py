@@ -1098,6 +1098,21 @@ class Country:
         ].geometry.area.sum()
         return destroyed_area / self.total_industry_area
 
+    def get_fraction_destroyed_industrial_polygons(self):
+        """
+        Get the fraction of industrial polygons that are destroyed, without area weighting.
+        Each polygon counts equally regardless of size.
+
+        Returns:
+            float: Fraction of industrial polygons that are destroyed (between 0 and 1)
+        """
+        self.destroyed_industrial_areas = list(set(self.destroyed_industrial_areas))
+        total_polygons = len(self.industry_equal_area)
+        if total_polygons == 0:
+            return 0.0
+        destroyed_polygons = len(self.destroyed_industrial_areas)
+        return destroyed_polygons / total_polygons
+
     def get_number_destroyed_custom_locations(self):
         """
         Get the number of destroyed custom locations with uncertainty
@@ -1124,6 +1139,9 @@ class Country:
         )
         print(
             f"Total destroyed industrial area: {100*self.get_total_destroyed_industrial_area():.1f}%"
+        )
+        print(
+            f"Fraction of industrial polygons destroyed: {100*self.get_fraction_destroyed_industrial_polygons():.1f}%"
         )
         print(f"Soot emissions: {self.soot_Tg:.1f} Tg")
 
