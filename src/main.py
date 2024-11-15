@@ -1088,15 +1088,23 @@ class Country:
 
         return total_fatalities, immediate_fatalities, radiation_fatalities
 
-    def get_total_destroyed_industrial_area(self):
+    def get_total_destroyed_industrial_area(self, max_area_km2=10):
         """
         Get the total destroyed industrial area as a fraction of the country's total industrial area.
-        Excludes polygons larger than 10 km² which are typically quarries or proving grounds.
+        Excludes polygons larger than max_area_km2.
+
+        Args:
+            max_area_km2 (float): Maximum area in square kilometers to include in calculation.
+                                 Defaults to 10 km², which manual inspection suggests is a reasonable
+                                 threshold for excluding quarries, proving grounds, and errors that
+                                 cause some polygons to count for too much in the total.
         """
         self.destroyed_industrial_areas = list(set(self.destroyed_industrial_areas))
         
-        # Filter out large polygons (>10 km²) from both numerator and denominator
-        small_polygons = self.industry_equal_area[self.industry_equal_area.geometry.area <= 1e7]
+        # Filter out large polygons from both numerator and denominator
+        # Convert km² to m² (1e6 m² = 1 km²)
+        max_area_m2 = max_area_km2 * 1e6
+        small_polygons = self.industry_equal_area[self.industry_equal_area.geometry.area <= max_area_m2]
         
         destroyed_area = small_polygons[
             small_polygons.index.isin(self.destroyed_industrial_areas)
