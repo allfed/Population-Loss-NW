@@ -1,4 +1,4 @@
-name: Population-Loss-NW
+name: Industry-Loss-NW
 channels:
   - conda-forge
 dependencies:
