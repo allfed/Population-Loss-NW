@@ -1,5 +1,5 @@
 # Population-Loss-NW
-Estimate fatalities and loss of industry in the direct aftermath of a nuclear war. Also estimates yield decrease due to loss of agricultural inputs.
+Estimate fatalities and loss of industry in the direct aftermath of a nuclear war. Also estimates yield decrease due to loss of agricultural inputs. The code version used in the [paper](https://eartharxiv.org/repository/view/8166/) is the one in the `paper1-release` branch.
 
 
 ## Installation
