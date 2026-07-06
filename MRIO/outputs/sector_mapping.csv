@@ -1,0 +1,51 @@
+industry_code,description,industrial_excl_F,industrial_incl_F
+A01,Agriculture and hunting,False,False
+A02,Forestry and logging,False,False
+A03,Fishing and aquaculture,False,False
+B05,Mining of coal and lignite,True,True
+B06,Extraction of crude petroleum and natural gas,True,True
+B07,Mining of metal ores,True,True
+B08,Other mining and quarrying,True,True
+B09,Mining support service activities,True,True
+C10T12,Manufacture of food products; beverages and tobacco products,True,True
+C13T15,"Manufacture of textiles, wearing apparel, leather and related products",True,True
+C16,Manufacture of wood and of products of wood and cork,True,True
+C17_18,Manufacture of paper and paper products; Printing and reproduction of recorded media,True,True
+C19,Manufacture of coke and refined petroleum products,True,True
+C20,Manufacture of chemicals and chemical products,True,True
+C21,Manufacture of basic pharmaceutical products and pharmaceutical preparations,True,True
+C22,Manufacture of rubber and plastic products,True,True
+C23,Manufacture of other non-metallic mineral products,True,True
+C24A,Manufacture of basic iron and steel,True,True
+C24B,Manufacture of basic precious and other non-ferrous metals,True,True
+C25,Manufacture of fabricated metal products,True,True
+C26,"Manufacture of computer, electronic and optical products",True,True
+C27,Manufacture of electrical equipment,True,True
+C28,Manufacture of machinery and equipment n.e.c.,True,True
+C29,"Manufacture of motor vehicles, trailers and semi-trailers",True,True
+C301,Building of ships and boats,True,True
+C302T309,Manufacture of other transport equipment,True,True
+C31T33,Manufacture of furniture; other manufacturing; repair and installation of machinery and equipment,True,True
+D,"Electricity, gas, steam and air conditioning supply",True,True
+E,"Water supply; sewerage, waste management and remediation activities",True,True
+F,Construction,False,True
+G,Wholesale and retail trade; repair of motor vehicles and motorcycles,False,False
+H49,Land transport and transport via pipelines,False,False
+H50,Water transport,False,False
+H51,Air transport,False,False
+H52,Warehousing and support activities for transportation,False,False
+H53,Postal and courier activities,False,False
+I,Accommodation and food service activities,False,False
+J58T60,"Publishing, Motion picture, video, television programme production and broadcasting activities",False,False
+J61,Telecommunications,False,False
+J62_63,Computer programming and information service activities,False,False
+K,Financial and insurance activities,False,False
+L,Real estate activities,False,False
+M,"Professional, scientific and technical activities",False,False
+N,Administrative and support service activities,False,False
+O,Public administration and defence; compulsory social security,False,False
+P,Education,False,False
+Q,Human health and social work activities,False,False
+R,"Arts, entertainment and recreation activities",False,False
+S,Other service activities,False,False
+T,Activities of households as employers; undifferentiated goods- and services-producing activities of households for own use,False,False
