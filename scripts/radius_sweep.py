@@ -1,6 +1,6 @@
 """Burn-radius sensitivity sweep: rerun the scenario industrial-destruction
 fractions under five burn-radius configurations: the fiducial fit implemented
-in src/main.py ("default" = 0.75*Y^0.38) plus a clean 2x2 grid of bounding
+in src/main.py ("default" = 0.57*Y^0.43) plus a clean 2x2 grid of bounding
 cases — each exponent {1/3 (blast-limited), 1/2 (unattenuated thermal)}
 anchored in turn at each empirical data point {Hiroshima (13 km^2 destroyed at
 15 kt), Nagasaki (6.7 km^2 at 21 kt)}:
@@ -45,6 +45,18 @@ by the kill-radius bounding box on ground bursts) are invalid. Drop them with
 
 then re-launch the sweep; the India/Pakistan rows are unaffected by both fixes
 (15 kt airbursts, Toon kill radius exceeds every burn radius) and are kept.
+
+"default" rows produced before the 2026-07-07 refit (the fiducial fit was
+redone in log space with Nagasaki = 6.7 km^2, changing R = 0.751*Y^0.383 to
+R = 0.569*Y^0.432, plus the matching kill-radius exponent used for US
+fatalities) are likewise invalid — for ALL three scenarios. The bounding-case
+rows are anchored analytic scalings and are unaffected. Drop only the default
+rows with
+
+    grep -v '"prescription": "default"' radius_sweep_results.jsonl > tmp \
+        && mv tmp radius_sweep_results.jsonl
+
+then re-launch the sweep (3 runs).
 
 Settings mirror the paper notebooks exactly — do not change them:
 - India/Pakistan: india-pakistan.ipynb (degrade=False, kill_radius 'Toon',

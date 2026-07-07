@@ -1,31 +1,31 @@
 rank_by,region,industry,industry_name,baseline_go_musd,delta_go_musd,pct_change
-abs_usd,CHN,C26,"Manufacture of computer, electronic and optical products",1713857.4824,-22378.142322826898,-1.3057178063306447
-abs_usd,CHN,F,Construction,3704059.8108,-20966.010153239127,-0.5660278511731404
-abs_usd,MEX,C29,"Manufacture of motor vehicles, trailers and semi-trailers",189783.978,-14578.272490710922,-7.681508546896895
-abs_usd,CHN,C20,Manufacture of chemicals and chemical products,1309275.0618,-11432.650015223073,-0.873204596099569
-abs_usd,CAN,C29,"Manufacture of motor vehicles, trailers and semi-trailers",76510.3401,-10557.13879021781,-13.798316379746181
-abs_usd,CHN,C19,Manufacture of coke and refined petroleum products,672181.436,-10385.049037296674,-1.5449770673667749
-abs_usd,CAN,F,Construction,265694.0314,-10241.927529721317,-3.8547826896051673
-abs_usd,CHN,C27,Manufacture of electrical equipment,961641.2652,-9498.81067481602,-0.9877707018781561
-abs_usd,CHN,C28,Manufacture of machinery and equipment n.e.c.,1250231.9232,-9174.777971948264,-0.7338460810107287
-abs_usd,CHN,C24B,Manufacture of basic precious and other non-ferrous metals,724562.3935,-8159.974103862187,-1.1261934344184517
-abs_usd,CHN,C29,"Manufacture of motor vehicles, trailers and semi-trailers",975608.1874,-7896.864049869007,-0.8094298666059971
-abs_usd,CHN,C24A,Manufacture of basic iron and steel,1100099.707,-7712.425084655639,-0.7010660066156749
-abs_usd,FRA,C302T309,Manufacture of other transport equipment,124029.8719,-7646.987757293711,-6.165440341226145
-abs_usd,CAN,C19,Manufacture of coke and refined petroleum products,52647.346,-7549.064615044175,-14.338927198807276
-abs_usd,CHN,D,"Electricity, gas, steam and air conditioning supply",1078237.8035,-7541.479562853696,-0.6994263731408575
-pct,BLR,C19,Manufacture of coke and refined petroleum products,7481.4873,-2206.864183697572,-29.497666643069383
-pct,BGR,C19,Manufacture of coke and refined petroleum products,4124.5901,-1097.0714554029578,-26.598314712605205
-pct,SVK,C19,Manufacture of coke and refined petroleum products,3874.3355,-957.4421844552239,-24.71242318728525
-pct,LTU,C19,Manufacture of coke and refined petroleum products,5207.0847,-1162.7565636906693,-22.330279430458837
-pct,BLR,D,"Electricity, gas, steam and air conditioning supply",4633.5295,-984.0642324171354,-21.237897210261323
-pct,BLR,C24A,Manufacture of basic iron and steel,1729.5684,-346.19027260350026,-20.01599200144384
-pct,HUN,C19,Manufacture of coke and refined petroleum products,5944.9978,-1146.3372412241606,-19.282382934173004
-pct,FIN,C19,Manufacture of coke and refined petroleum products,11342.1934,-2186.3330028788223,-19.27610406360045
-pct,BLR,C24B,Manufacture of basic precious and other non-ferrous metals,1197.1946,-224.60763030998112,-18.761162998060726
-pct,BLR,C20,Manufacture of chemicals and chemical products,5190.9926,-930.5349773696989,-17.925954611642076
-pct,BLR,C27,Manufacture of electrical equipment,1391.6743,-224.8885394589836,-16.159566894278612
-pct,BLR,C25,Manufacture of fabricated metal products,1594.3014,-245.401747387677,-15.392431279786683
-pct,BLR,H51,Air transport,1508.8024,-216.45368023212268,-14.346058849861498
-pct,CAN,C19,Manufacture of coke and refined petroleum products,52647.346,-7549.064615044175,-14.338927198807276
-pct,CHL,C19,Manufacture of coke and refined petroleum products,4888.8599,-683.0831602448116,-13.972238399484745
+abs_usd,CHN,C26,"Manufacture of computer, electronic and optical products",1713857.4824,-21998.789729873883,-1.2835833758515254
+abs_usd,CHN,F,Construction,3704059.8108,-20610.50410181051,-0.5564301105969202
+abs_usd,MEX,C29,"Manufacture of motor vehicles, trailers and semi-trailers",189783.978,-14331.183317233692,-7.551313587300658
+abs_usd,CHN,C20,Manufacture of chemicals and chemical products,1309275.0618,-11238.829831308918,-0.8584009700648922
+abs_usd,CAN,C29,"Manufacture of motor vehicles, trailers and semi-trailers",76510.3401,-10378.20440673444,-13.564446835774083
+abs_usd,CHN,C19,Manufacture of coke and refined petroleum products,672181.436,-10209.016254829825,-1.5187887835137752
+abs_usd,CAN,F,Construction,265694.0314,-10068.335995391448,-3.789447562046909
+abs_usd,CHN,C27,Manufacture of electrical equipment,961641.2652,-9337.777315612999,-0.9710250228988404
+abs_usd,CHN,C28,Manufacture of machinery and equipment n.e.c.,1250231.9232,-9019.227124815108,-0.7214043216661888
+abs_usd,CHN,C24B,Manufacture of basic precious and other non-ferrous metals,724562.3935,-8021.64894655894,-1.1071025792285947
+abs_usd,CHN,C29,"Manufacture of motor vehicles, trailers and semi-trailers",975608.1874,-7762.9809925085865,-0.7957068311610795
+abs_usd,CHN,C24A,Manufacture of basic iron and steel,1100099.707,-7581.667333545163,-0.6891800157115362
+abs_usd,FRA,C302T309,Manufacture of other transport equipment,124029.8719,-7517.378661970957,-6.060942051147081
+abs_usd,CAN,C19,Manufacture of coke and refined petroleum products,52647.346,-7421.114602274625,-14.095894980678846
+abs_usd,CHN,D,"Electricity, gas, steam and air conditioning supply",1078237.8035,-7413.618670876138,-0.6875680528739817
+pct,BLR,C19,Manufacture of coke and refined petroleum products,7481.4873,-2169.460005754623,-28.99771019800599
+pct,BGR,C19,Manufacture of coke and refined petroleum products,4124.5901,-1078.4774310374873,-26.14750568880741
+pct,SVK,C19,Manufacture of coke and refined petroleum products,3874.3355,-941.2145923055905,-24.29357478993728
+pct,LTU,C19,Manufacture of coke and refined petroleum products,5207.0847,-1143.0491565180068,-21.95180647854656
+pct,BLR,D,"Electricity, gas, steam and air conditioning supply",4633.5295,-967.3853942032088,-20.877937524800668
+pct,BLR,C24A,Manufacture of basic iron and steel,1729.5684,-340.32298832598394,-19.676757989217652
+pct,HUN,C19,Manufacture of coke and refined petroleum products,5944.9978,-1126.908193586386,-18.955569564489764
+pct,FIN,C19,Manufacture of coke and refined petroleum products,11342.1934,-2149.2768255610536,-18.949393206088814
+pct,BLR,C24B,Manufacture of basic precious and other non-ferrous metals,1197.1946,-220.80106883424287,-18.443206211775667
+pct,BLR,C20,Manufacture of chemicals and chemical products,5190.9926,-914.7634074468724,-17.6221289054982
+pct,BLR,C27,Manufacture of electrical equipment,1391.6743,-221.07712029027994,-15.885693965195731
+pct,BLR,C25,Manufacture of fabricated metal products,1594.3014,-241.24264198186393,-15.131558059339591
+pct,BLR,H51,Air transport,1508.8024,-212.78520227345848,-14.1029204535636
+pct,CAN,C19,Manufacture of coke and refined petroleum products,52647.346,-7421.114602274625,-14.095894980678846
+pct,CHL,C19,Manufacture of coke and refined petroleum products,4888.8599,-671.5057449745436,-13.735426228404368

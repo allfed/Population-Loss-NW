@@ -8,20 +8,26 @@ rows from the old bounding scheme ("overpressure", "nagasaki") are ignored.
 
     python propagate_aws_results.py [--results radius_sweep_results.jsonl]
 
-The central (point) estimates use `default` (the fiducial R = 0.75 Y^0.38
+The central (point) estimates use `default` (the fiducial R = 0.57 Y^0.43
 fit) and are unchanged by the sweep; they are printed as sanity checks with
 their expected values. The burn-radius sensitivity ranges span the four
 bounding prescriptions of Section 2.1 (exponents 1/3 and 1/2, each anchored
 at Hiroshima and at Nagasaki) plus the default.
 
-Known values from the 2026-07-07 AWS run (post-targeting-fix code, commit
-7b28280: all 2,030 OPEN-RISOP warheads detonate, burn box unclipped):
+Known values from the 2026-07-07 AWS runs (post-targeting-fix code: all
+2,030 OPEN-RISOP warheads detonate, burn box unclipped; default rows from
+the same-day re-run under the log-space burn-radius refit R = 0.569*Y^0.432,
+see burn-radius-scaling.ipynb):
                        India    Pakistan   US
-    default            1.463    7.702      26.577
+    default            0.865    7.041      25.853
     thermal-hiroshima  1.380    7.619      31.947   (as "Toon")
     thermal-nagasaki   0.492    3.212      20.777
     blast-hiroshima    1.380    7.619      22.850
     blast-nagasaki     0.634    3.721      14.238
+
+Note the 15 kt default radius (1.83 km) sits BELOW the Hiroshima-anchored
+bounding radius (2.03 km), so for India/Pakistan the default is interior
+to the x span rather than its upper end.
 
 The check() lines compare against the numbers hard-coded in paper1-v3.md
 (updated to this run on 2026-07-07), so any line marked "TEXT NEEDS UPDATING"
@@ -177,7 +183,8 @@ def main():
             continue
         xs = [d[pr] for pr in ALL_PRESCRIPTIONS]
         xnag = [d["thermal-nagasaki"], d["blast-nagasaki"]]
-        print(f"  [[{tag}-XLO]]  = {min(xs):.{dp}f}     (low end of x span; upper end is the default value)")
+        print(f"  [[{tag}-XLO]]  = {min(xs):.{dp}f}     (low end of x span; upper end = {fmt_range([max(xs)], dp)}, "
+              f"{max((pr for pr in d), key=lambda pr: d[pr])})")
         print(f"  [[{tag}-XNAG]] = {fmt_range(xnag, dp)}     (x under the two Nagasaki-anchored cases)")
         print(f"  [[{tag}-YNAG]] = {fmt_range([predict(x) for x in xnag], 0)}     (central-fit y under those cases)")
         print(f"  [[{tag}-CLO]]  = {boot_ci(min(xs))[0][0]:.0f}     (low end of combined plausible range)")
@@ -197,23 +204,23 @@ def main():
     # --- Numbers already in the text that must NOT have changed ----------------
     print("\n=== Sanity checks against numbers hard-coded in the text ===")
     if "default" in sweep["India"]:
-        check("India x default", sweep["India"]["default"], 1.5, 1)
-        check("India y default", predict(sweep["India"]["default"]), 7)
+        check("India x default", sweep["India"]["default"], 0.9, 1)
+        check("India y default", predict(sweep["India"]["default"]), 5)
         lo, hi = boot_ci(sweep["India"]["default"])
-        check("India fit CI low", lo[0], 6)
-        check("India fit CI high", hi[0], 14)
+        check("India fit CI low", lo[0], 4)
+        check("India fit CI high", hi[0], 11)
     if "default" in sweep["Pakistan"]:
-        check("Pakistan x default", sweep["Pakistan"]["default"], 7.7, 1)
-        check("Pakistan y default", predict(sweep["Pakistan"]["default"]), 24)
+        check("Pakistan x default", sweep["Pakistan"]["default"], 7.0, 1)
+        check("Pakistan y default", predict(sweep["Pakistan"]["default"]), 22)
         lo, hi = boot_ci(sweep["Pakistan"]["default"])
-        check("Pakistan fit CI low", lo[0], 20)
-        check("Pakistan fit CI high", hi[0], 31)
+        check("Pakistan fit CI low", lo[0], 19)
+        check("Pakistan fit CI high", hi[0], 29)
     if "default" in sweep["US"]:
-        check("US x default", sweep["US"]["default"], 27)
-        check("US y default", predict(sweep["US"]["default"]), 59)
+        check("US x default", sweep["US"]["default"], 26)
+        check("US y default", predict(sweep["US"]["default"]), 58)
         lo, hi = boot_ci(sweep["US"]["default"])
-        check("US fit CI low", lo[0], 50)
-        check("US fit CI high", hi[0], 72)
+        check("US fit CI low", lo[0], 49)
+        check("US fit CI high", hi[0], 70)
     if "thermal-hiroshima" in sweep["US"]:
         check("US x thermal-hiroshima", sweep["US"]["thermal-hiroshima"], 32)
         check("US y at x_max", predict(sweep["US"]["thermal-hiroshima"]), 67)
