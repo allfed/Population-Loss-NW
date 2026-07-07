@@ -37,6 +37,15 @@ present in that file are skipped automatically, so the script can be re-launched
 after a crash or OOM kill and it will resume where it left off. Afterwards, run
 propagate_aws_results.py to turn the sweep into manuscript numbers.
 
+US rows produced before the 2026-07-06 targeting fixes (OPEN-RISOP name
+collisions silently dropped 187 of 2,030 warheads; the burn ellipse was clipped
+by the kill-radius bounding box on ground bursts) are invalid. Drop them with
+
+    python radius_sweep.py --invalidate US
+
+then re-launch the sweep; the India/Pakistan rows are unaffected by both fixes
+(15 kt airbursts, Toon kill radius exceeds every burn radius) and are kept.
+
 Settings mirror the paper notebooks exactly — do not change them:
 - India/Pakistan: india-pakistan.ipynb (degrade=False, kill_radius 'Toon',
   85 x 15 kt, max-fatality targeting, non_overlapping=False)
@@ -127,11 +136,46 @@ def run_us(presc):
     return c
 
 
+def invalidate_scenario(scenario):
+    """Drop a scenario's rows from the results file so it gets re-run.
+
+    Needed after the 2026-07-06 US-targeting fixes (OPEN-RISOP name collisions
+    dropped ~9% of warheads; burn box was clipped on ground bursts): old US
+    rows are invalid, while India/Pakistan rows (airbursts, unaffected code
+    paths) remain valid and should be kept to avoid re-running them.
+    """
+    if not os.path.exists(LOG_PATH):
+        print(f"nothing to invalidate: {LOG_PATH} not found")
+        return
+    kept, dropped = [], 0
+    with open(LOG_PATH) as f:
+        for line in f:
+            try:
+                d = json.loads(line)
+            except json.JSONDecodeError:
+                kept.append(line)
+                continue
+            if d.get("scenario") == scenario:
+                dropped += 1
+            else:
+                kept.append(line)
+    with open(LOG_PATH, "w") as f:
+        f.writelines(kept)
+    print(f"dropped {dropped} {scenario} row(s) from {LOG_PATH}; kept {len(kept)} line(s)")
+
+
 def main_cli():
     p = argparse.ArgumentParser()
     p.add_argument("--scenario", choices=SCENARIOS)
     p.add_argument("--prescription", choices=PRESCRIPTIONS)
+    p.add_argument("--invalidate", choices=SCENARIOS, metavar="SCENARIO",
+                   help="drop this scenario's rows from the results file and exit "
+                        "(use after a code fix invalidates its old runs)")
     args = p.parse_args()
+
+    if args.invalidate:
+        invalidate_scenario(args.invalidate)
+        return
 
     prescriptions = [args.prescription] if args.prescription else PRESCRIPTIONS
     scenarios = [args.scenario] if args.scenario else SCENARIOS
@@ -151,11 +195,14 @@ def main_cli():
             t0 = time.time()
             try:
                 c = run_us(presc) if scenario == "US" else run_india_pakistan(scenario, presc)
+                total, immediate, radiation = c.get_total_fatalities()
                 log(
                     scenario=scenario,
                     prescription=presc,
                     industry_destroyed_pct=round(100 * c.get_total_destroyed_industrial_area(), 3),
-                    fatalities=int(c.get_total_fatalities()),
+                    fatalities=total,
+                    fatalities_immediate=immediate,
+                    fatalities_radiation=radiation,
                     minutes=round((time.time() - t0) / 60, 1),
                 )
                 del c

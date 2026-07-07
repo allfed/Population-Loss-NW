@@ -885,11 +885,16 @@ class Country:
         delta_lon_burn = delta_lon_burn * 180 / np.pi
         delta_lat_burn = delta_lat_burn * 180 / np.pi
 
-        # Create a mask for the box that bounds the destroyed region
-        lon_min_kill = lon_groundzero - delta_lon_kill
-        lon_max_kill = lon_groundzero + delta_lon_kill
-        lat_min_kill = lat_groundzero - delta_lat_kill
-        lat_max_kill = lat_groundzero + delta_lat_kill
+        # Create a mask for the box that bounds the destroyed region. The box
+        # must cover both the kill and burn radii: for ground bursts the burn
+        # radius can exceed the kill radius, whose 1/sqrt(2) correction does
+        # not apply to fire damage.
+        delta_lon_box = max(delta_lon_kill, delta_lon_burn)
+        delta_lat_box = max(delta_lat_kill, delta_lat_burn)
+        lon_min_kill = lon_groundzero - delta_lon_box
+        lon_max_kill = lon_groundzero + delta_lon_box
+        lat_min_kill = lat_groundzero - delta_lat_box
+        lat_max_kill = lat_groundzero + delta_lat_box
         lon_indices_kill = np.where(
             (self.lons >= lon_min_kill) & (self.lons <= lon_max_kill)
         )[0]
@@ -2249,8 +2254,10 @@ def get_OPEN_RISOP_nuclear_war_plan(
         ignore_other_civilian (bool): If True, ignore other civilian targets
         icbm_only (bool): If True, only include ICBM targets
     Returns:
-        dict: A dictionary of targets with names as keys and tuples of
-                (latitude, longitude, hob, yield, category) as values.
+        dict: A dictionary with one entry per warhead and tuples of
+                (latitude, longitude, hob, yield) as values. Keys are the
+                target name suffixed with the row index, since names repeat
+                across states.
     """
     # Read the Excel file
     df = pd.read_excel(
@@ -2281,7 +2288,13 @@ def get_OPEN_RISOP_nuclear_war_plan(
         if col not in merged_df.columns:
             merged_df[col] = df[col]
 
-    merged_df = merged_df.drop_duplicates(subset=["Latitude", "Longitude"])
+    # Each row of the attack spreadsheet is one warhead. Names are not unique
+    # (county-style identifiers repeat across states) and layered strikes can
+    # put two warheads on the same aimpoint, so only drop rows that duplicate
+    # another warhead exactly.
+    merged_df = merged_df.drop_duplicates(
+        subset=["Name", "Latitude", "Longitude", "Yield (kt)", "HOB (m)"]
+    )
 
     # Define category lists
     military = [
@@ -2355,7 +2368,7 @@ def get_OPEN_RISOP_nuclear_war_plan(
     # Create a dictionary with the required structure
     targets = {}
     total_yield = 0
-    for _, row in merged_df.iterrows():
+    for i, row in merged_df.iterrows():
         name = row["Name"]
         lat = row["Latitude"]
         lon = row["Longitude"]
@@ -2390,9 +2403,12 @@ def get_OPEN_RISOP_nuclear_war_plan(
         if icbm_only and subclass != "ICBM SILOS":
             continue
 
-        targets[name] = (lat, lon, hob, ykt)
+        # Names repeat across states, so suffix the row index to keep every
+        # warhead (a name-keyed dict would silently overwrite ~9% of them)
+        targets[f"{name} [{i}]"] = (lat, lon, hob, ykt)
         total_yield += ykt
 
+    print(f"Number of warheads: {len(targets)}")
     print(f"Total yield: {total_yield} kt")
     return targets
 

@@ -14,10 +14,18 @@ their expected values. The burn-radius sensitivity ranges span the four
 bounding prescriptions of Section 2.1 (exponents 1/3 and 1/2, each anchored
 at Hiroshima and at Nagasaki) plus the default.
 
-Known values from the previous AWS run (reused, not re-run):
+Known values from the 2026-07-06 AWS run:
                        India    Pakistan   US
     default            1.463    7.702      23.620
     thermal-hiroshima  1.380    7.619      27.194   (as "Toon")
+
+The US values above predate the 2026-07-06 targeting fixes (OPEN-RISOP name
+collisions dropped 187 of 2,030 warheads; burn ellipse clipped on ground
+bursts) and are slight underestimates: invalidate and re-run the US scenario
+(radius_sweep.py --invalidate US) before trusting the US numbers below. The
+India/Pakistan rows are unaffected by both fixes. The check() lines compare
+against the numbers currently hard-coded in paper1-v3.md, so after the re-run
+any line marked "TEXT NEEDS UPDATING" is a manuscript edit to make.
 """
 import argparse
 import json
