@@ -264,7 +264,7 @@ class Country:
         Returns:
             None. Sets self.data_averaged with the convolved population data.
         """
-        scaling_factor = self.calculate_kill_radius_scaling_factor(
+        scaling_factor = calculate_kill_radius_scaling_factor(
             self.kill_radius_prescription, yield_kt
         )
         radius = int(1.15 * scaling_factor * 3 / self.approximate_resolution)
@@ -473,14 +473,19 @@ class Country:
         delta_lat_burn = max_radius_burn / 6371.0 * 180 / np.pi
         delta_lon_burn = delta_lat_burn / np.cos(np.radians(lat_groundzero))
 
-        # Create a mask for the box that bounds the destroyed region
+        # Create a mask for the box that bounds the destroyed region. The box
+        # must cover both the kill and burn radii: for ground bursts the burn
+        # radius can exceed the kill radius, whose 1/sqrt(2) correction does
+        # not apply to fire damage.
+        delta_lon_box = max(delta_lon_kill, delta_lon_burn)
+        delta_lat_box = max(delta_lat_kill, delta_lat_burn)
         lon_min_kill, lon_max_kill = (
-            lon_groundzero - delta_lon_kill,
-            lon_groundzero + delta_lon_kill,
+            lon_groundzero - delta_lon_box,
+            lon_groundzero + delta_lon_box,
         )
         lat_min_kill, lat_max_kill = (
-            lat_groundzero - delta_lat_kill,
-            lat_groundzero + delta_lat_kill,
+            lat_groundzero - delta_lat_box,
+            lat_groundzero + delta_lat_box,
         )
         lon_indices_kill = np.where(
             (self.lons >= lon_min_kill) & (self.lons <= lon_max_kill)
