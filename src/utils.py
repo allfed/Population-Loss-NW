@@ -75,7 +75,7 @@ def calculate_kill_radius_scaling_factor(scaling_prescription, yield_kt, airburs
     if scaling_prescription == "Toon":
         return corr * np.sqrt(yield_kt / 15)
     elif scaling_prescription == "default":
-        return corr * (yield_kt / 18) ** 0.38287688
+        return corr * (yield_kt / 18) ** 0.43159439
     elif scaling_prescription == "overpressure":
         return corr * (yield_kt / 18) ** 0.33333333
     else:
@@ -98,7 +98,8 @@ def calculate_max_radius_burn(burn_radius_prescription, yield_kt):
         return 2.03 * (yield_kt / 15) ** 0.50
     elif burn_radius_prescription == "default":
         # Most realistic model, see scripts/burn-radius-scaling.ipynb
-        return 0.75094351 * yield_kt**0.38287688
+        # (log-space power-law fit to Hiroshima, Nagasaki, and Brode & Small 1984)
+        return 0.56867619 * yield_kt**0.43159439
     elif burn_radius_prescription == "overpressure":
         # Scales from average of Hiroshima and Nagasaki (13km² and 6.7km², 15kt and 21kt),
         # also assumes that it scales like D**(1/3)
