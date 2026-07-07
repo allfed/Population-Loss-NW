@@ -14,18 +14,18 @@ their expected values. The burn-radius sensitivity ranges span the four
 bounding prescriptions of Section 2.1 (exponents 1/3 and 1/2, each anchored
 at Hiroshima and at Nagasaki) plus the default.
 
-Known values from the 2026-07-06 AWS run:
+Known values from the 2026-07-07 AWS run (post-targeting-fix code, commit
+7b28280: all 2,030 OPEN-RISOP warheads detonate, burn box unclipped):
                        India    Pakistan   US
-    default            1.463    7.702      23.620
-    thermal-hiroshima  1.380    7.619      27.194   (as "Toon")
+    default            1.463    7.702      26.577
+    thermal-hiroshima  1.380    7.619      31.947   (as "Toon")
+    thermal-nagasaki   0.492    3.212      20.777
+    blast-hiroshima    1.380    7.619      22.850
+    blast-nagasaki     0.634    3.721      14.238
 
-The US values above predate the 2026-07-06 targeting fixes (OPEN-RISOP name
-collisions dropped 187 of 2,030 warheads; burn ellipse clipped on ground
-bursts) and are slight underestimates: invalidate and re-run the US scenario
-(radius_sweep.py --invalidate US) before trusting the US numbers below. The
-India/Pakistan rows are unaffected by both fixes. The check() lines compare
-against the numbers currently hard-coded in paper1-v3.md, so after the re-run
-any line marked "TEXT NEEDS UPDATING" is a manuscript edit to make.
+The check() lines compare against the numbers hard-coded in paper1-v3.md
+(updated to this run on 2026-07-07), so any line marked "TEXT NEEDS UPDATING"
+after a future re-run is a manuscript edit to make.
 """
 import argparse
 import json
@@ -209,15 +209,15 @@ def main():
         check("Pakistan fit CI low", lo[0], 20)
         check("Pakistan fit CI high", hi[0], 31)
     if "default" in sweep["US"]:
-        check("US x default", sweep["US"]["default"], 24)
-        check("US y default", predict(sweep["US"]["default"]), 54)
+        check("US x default", sweep["US"]["default"], 27)
+        check("US y default", predict(sweep["US"]["default"]), 59)
         lo, hi = boot_ci(sweep["US"]["default"])
-        check("US fit CI low", lo[0], 46)
-        check("US fit CI high", hi[0], 66)
+        check("US fit CI low", lo[0], 50)
+        check("US fit CI high", hi[0], 72)
     if "thermal-hiroshima" in sweep["US"]:
-        check("US x thermal-hiroshima", sweep["US"]["thermal-hiroshima"], 27)
-        check("US y at x_max", predict(sweep["US"]["thermal-hiroshima"]), 60)
-        check("US CI95 at x_max", boot_ci(sweep["US"]["thermal-hiroshima"])[1][0], 73)
+        check("US x thermal-hiroshima", sweep["US"]["thermal-hiroshima"], 32)
+        check("US y at x_max", predict(sweep["US"]["thermal-hiroshima"]), 67)
+        check("US CI95 at x_max", boot_ci(sweep["US"]["thermal-hiroshima"])[1][0], 83)
     # out-of-sample check against the 1974 Katz point (excluded from the fit)
     check("Katz y at x=10", predict(KATZ_X), 29)
     lo, hi = boot_ci(KATZ_X)

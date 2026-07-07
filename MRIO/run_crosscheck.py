@@ -19,9 +19,10 @@ import pandas as pd
 import mrio_crosscheck as mc
 
 SHOCK_REGIONS = ("USA", "RUS")
-SHOCKS = [0.46, 0.54, 0.66]          # 90% interval ends + central case (7-point fit,
-                                     # 1974 model point excluded, 2026-07-06)
-CENTRAL_S = 0.54
+SHOCKS = [0.50, 0.59, 0.72]          # 90% interval ends + central case (7-point fit
+                                     # at x = 26.577%, the post-bugfix 2026-07-07
+                                     # sweep value; 1974 model point excluded)
+CENTRAL_S = 0.59
 US_RU = SHOCK_REGIONS
 
 # years to run: 2019 primary baseline (pre-COVID), 2021 & 2022 sensitivities
