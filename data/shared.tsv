@@ -1,3 +1,3 @@
 # link	store path	where to get it without the store
-# Read by scripts/link_shared.sh (links are git-ignored). See the shared-data section of README.md.
-data/landscan-global-2002.tif	shared-data/landscan-global/2002/landscan-global-2002.tif	https://landscan.ornl.gov
+# Read by scripts/link_shared.sh, which makes each link (git-ignored). See the README section on shared data.
+data/landscan-global-2002.tif	shared-data/landscan-global-2002/landscan-global-2002.tif	https://landscan.ornl.gov (LandScan Global 2002)
