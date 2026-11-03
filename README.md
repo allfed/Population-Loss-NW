@@ -91,3 +91,18 @@ And here is a similar comparison for the amount of soot emissions in Tg. Note th
 
 ## Scenarios considered
 See theses [slides](https://docs.google.com/presentation/d/1MnmQaBrXC9f9iq4tgrjnwuggpzrl4G63ftm2RXDTaWI/edit?usp=drive_link) for a description of the scenarios considered.
+
+## Data
+
+Large inputs listed below are not in this repository. Where the ALLFED shared store is available, they live once in it (`~/ALLFED/shared-data`, `~/ALLFED/shared-models`), read-only, each version with a `SOURCE.md` (origin, licence, checksums). This repository reaches them through links that are git-ignored and made by `scripts/link_shared.sh` from the list in `data/shared.tsv`:
+
+    scripts/link_shared.sh            # makes the links; prints MISSING (with where to get it) for anything not found
+    scripts/link_shared.sh --check    # reports only, changes nothing
+
+The store is the folder that holds `shared-data/` and `shared-models/`, by default the folder that contains this repository. Set `ALLFED_STORE=/path` if it is elsewhere. Without the store, download each input and put it (or a link to it) at the path in the first column.
+
+| Path in this repo | Store version | What | Where to get it | Size |
+|---|---|---|---|---|
+| `data/landscan-global-2002.tif` | `shared-data/landscan-global/2002/landscan-global-2002.tif` | LandScan Global 2002 (landscan-global-2002.tif) | https://landscan.ornl.gov | 98 MB |
+
+The links sit at the paths the code already reads, so no code changed. Moved on 2026-11-03. `data/landscan-global-2022.tif` and `data/landscan-hd/` stay tracked in this repository (a copy of the 2022 file is in the store as `shared-data/landscan-global/2022`).
