@@ -1,0 +1,10 @@
+iso3,number_of_weapons,yield_kt,population_loss,population_loss_pct,industry_destroyed_pct,degrade_factor,targeting_policy,include_injuries,kill_radius_prescription,burn_radius_prescription
+USA,1000,100,69544707,20.8,18.11,3,max_fatality_non_overlapping,False,Toon,Toon
+RUS,1100,100,47959735,33.2,32.64,3,max_fatality_non_overlapping,False,Toon,Toon
+CHN,1100,100,211187345,15.1,16.68,3,max_fatality_non_overlapping,False,Toon,Toon
+FRA,200,100,13528177,20.9,26.6,1,max_fatality_non_overlapping,False,Toon,Toon
+DEU,200,100,18156787,21.5,23.11,1,max_fatality_non_overlapping,False,Toon,Toon
+GBR,200,100,19494637,29.1,38.03,1,max_fatality_non_overlapping,False,Toon,Toon
+JPN,200,100,31370567,25.5,24.97,1,max_fatality_non_overlapping,False,Toon,Toon
+IND,200,100,116683839,8.4,10.29,2,max_fatality_non_overlapping,False,Toon,Toon
+PAK,200,100,43314298,17.9,29.62,1,max_fatality_non_overlapping,False,Toon,Toon

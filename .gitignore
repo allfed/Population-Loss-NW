@@ -170,3 +170,6 @@ cython_debug/
 BACI
 scratchpad.ipynb
 *.kml
+# Paper drafts and the bundled paper-code export (kept locally, not in the repository)
+GCIL-paper-code.zip
+gcil-manuscript/

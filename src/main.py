@@ -929,7 +929,10 @@ class Country:
                         airburst=airburst,
                     )
                     self.fatalities.append(fatality_rate * population_in_pixel)
-                    self.hit[lat_idx_kill, lon_idx_kill] = 1
+                    # mark as hit, but never downgrade a burned pixel: that would let
+                    # an overlapping strike burn it (and count its soot) a second time
+                    if self.hit[lat_idx_kill, lon_idx_kill] != 2:
+                        self.hit[lat_idx_kill, lon_idx_kill] = 1
                     self.data[lat_idx_kill, lon_idx_kill] = self.data[
                         lat_idx_kill, lon_idx_kill
                     ] * (1 - fatality_rate)

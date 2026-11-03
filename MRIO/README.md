@@ -11,6 +11,7 @@ results and interpretation.
 |---|---|
 | `mrio_crosscheck.py` | library: ICIO loader, baseline, Method 1 (mixed Leontief), Method 2 (mixed Ghosh; `method2_va_shock` VA-shock sensitivity), shares |
 | `run_crosscheck.py` | runner: produces every CSV in `outputs/` and prints a summary |
+| `run_sort_scenario.py` | global industrial loss for the Toon et al. (2008) SORT laydown (`../results/Toon2008_SORT_revised_burn_radius.csv`), with and without HEMP → `outputs/sort_scenario.csv` |
 | `methods-writeup.md` | ½–1 page methods note with equations, results, caveats (for the paper) |
 | `outputs/results.csv` | tidy results {year, method, s, lambda, RoW_decline_pct, sigma_MER, global_decline_pct} + Thailand rows |
 | `outputs/shares.csv` | US+RU industrial share of world industry (σ), MER, GO and VA |
