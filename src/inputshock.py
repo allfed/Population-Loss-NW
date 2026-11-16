@@ -120,9 +120,10 @@ def calculate_yield_loss(country, crop, input, pct, debug=False):
             shock_yield, transform = mask(src, [country_shape], crop=True)
             baseline_yield, _ = mask(baseline_src, [country_shape], crop=True)
 
-            # Get the latitudes of each pixel
+            # Get the latitude of each pixel centre from the cropped raster's
+            # affine transform (north-up grid: lat = f + (row + 0.5) * e)
             rows, _ = np.indices(shock_yield.shape[1:])
-            lats = np.degrees(np.arctan2(rows - transform[5], transform[4]))
+            lats = transform.f + (rows + 0.5) * transform.e
             lats = np.expand_dims(lats, axis=0)
 
             # Mask out areas where baseline yield is zero or NaN
